@@ -1,0 +1,8 @@
+fastapi
+
+#server, mis käivitab fastAPI:
+uvicorn[standard]
+requests
+
+#teek, mis loeb .env faili:
+python-dotenv
