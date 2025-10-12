@@ -1,0 +1,2 @@
+host,fqdn,system,distribution,distribution_version,kernel,architecture,vcpus,mem_mb_total,default_ipv4,all_ipv4,uptime_seconds,collected_at
+TowerOfChronia,TowerOfChronia,Linux,Ubuntu,24.04,6.14.0-29-generic,x86_64,4,7839,192.168.1.218,172.17.0.1;192.168.1.218;25.44.45.59,3683193,2025-10-12T12:05:16Z
