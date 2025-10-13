@@ -1,17 +1,10 @@
-import os
-import time
-from .nightly_sync import enqueue_gather_facts_job
+from scheduler.celery_app import celery_app  # noqa: F401
 
-
-def run_scheduler_loop(host: str, user: str, interval_seconds: int) -> None:
-    while True:
-        path = enqueue_gather_facts_job(host, user)
-        print(f"Enqueued: {path}")
-        time.sleep(max(1, interval_seconds))
-
+# This module only needs to import the scheduler Celery app so that
+# `celery -A src.scheduler.jobs.monthly_sync beat` can discover the beat schedule
+# defined in `src/scheduler/celery_app.py`.
 
 if __name__ == "__main__":
-    target_host = os.environ.get("CMDB_HOST", "25.44.45.59")
-    target_user = os.environ.get("CMDB_USER", "chronia")
-    interval = int(os.environ.get("CMDB_INTERVAL_SECONDS", "3600"))
-    run_scheduler_loop(target_host, target_user, interval)
+    print("Start Celery beat with:\n"
+          "  PYTHONPATH=. CELERY_BROKER_URL=redis://localhost:6379/0 "
+          "python3 -m celery -A src.scheduler.jobs.monthly_sync beat -l info")
