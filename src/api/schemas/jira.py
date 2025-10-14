@@ -6,11 +6,10 @@ class JiraAssetAttribute(BaseModel):
     objectAttributeValues: List[dict]
 
 class JiraAsset(BaseModel):
-    id: int
+    id: str
     objectKey: str
     label: str
     attributes: List[JiraAssetAttribute]
 
 class JiraAQLResponse(BaseModel):
-    totalFilterCount: int
-    entries: List[JiraAsset]
+    objectEntries: List[JiraAsset]
