@@ -3,7 +3,7 @@ from datetime import timedelta
 from celery import Celery
 
 
-# Broker/Backend
+# Broker/Backendd
 broker_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 celery_app = Celery("cmdb_scheduler", broker=broker_url, backend=broker_url)
 
