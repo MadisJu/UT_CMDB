@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Python bytecode and cache
 __pycache__/
 *.py[cod]
@@ -55,3 +56,14 @@ queue/
 # Celery
 celerybeat-schedule*
 celerybeat.pid
+=======
+# Default ignored files
+/shelf/
+/workspace.xml
+.venv/
+.idea/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+>>>>>>> 7b72b296223d427119562a8d716a1a1f7212750b
