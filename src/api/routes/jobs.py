@@ -3,7 +3,7 @@ from typing import List, Dict, Any, Optional
 from ..schemas import job
 import datetime
 import logging
-from src.scheduler.celery_app import celery_app
+from src.core.configs.celery_config import celery_app
 
 logger = logging.getLogger(__name__)
 
