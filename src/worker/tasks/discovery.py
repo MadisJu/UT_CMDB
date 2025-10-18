@@ -2,6 +2,7 @@ import ansible_runner
 import json
 from worker.main import celery_app
 import requests
+from worker.tasks.sync_to_jira import sync_task
 
 api_url = "http://localhost:8000/discovery/results"
 
@@ -16,17 +17,17 @@ def discovery_task(self, host, user):
             extravars={"ansible_user": user}
         )
         facts = r.get_fact_cache(host)
-        print(json.dumps(facts, indent=2))
 
-        payload = {
-            "assets": facts,  
-            "job_id": self.request.id
+        # CPU info kättesaamine Ansiblest
+        cpu_info = {
+            "architecture": facts.get("ansible_architecture"),
+            "processor": facts.get("ansible_processor"),
+            "physical_cpus": facts.get("ansible_processor_count"),
+            "virtual_cpus": facts.get("ansible_processor_vcpus"),
         }
         
-        response = requests.post(api_url, json=payload)
-        response.raise_for_status() 
-        
-        print(response.json())
+        sync_task.delay(cpu_info, self.request.id)
+
         return facts
     
     except Exception as exc:
