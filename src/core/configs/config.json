@@ -1,10 +1,34 @@
 {
-  "all":
-  {
-
+  "all": [
+    {
+      "hostname": "25.44.45.59",
+      "ip_address": "25.44.45.59",
+      "user": "chronia",
+      "type": "linux",
+      "description": "Primary server",
+      "enabled": true
+    }
+  ],
+  "categorized": {
+    "linux_servers": [
+      {
+        "hostname": "25.44.45.59",
+        "ip_address": "25.44.45.59",
+        "user": "chronia",
+        "type": "linux",
+        "description": "Primary Linux server",
+        "enabled": true
+      }
+    ],
+    "windows_servers": [],
+    "network_devices": [],
+    "other_devices": []
   },
-  "categorized":
-  {
-
+  "discovery_settings": {
+    "default_user": "chronia",
+    "timeout": 300,
+    "retry_count": 3,
+    "parallel_discovery": true,
+    "max_parallel_hosts": 5
   }
 }

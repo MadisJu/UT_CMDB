@@ -1,22 +1,65 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from ..schemas import asset
+from src.core.services.jira_service import JiraService
+from src.core.integrations.jira_client import JiraClient
 
-# Loome ruuteri, mis grupeerib kõik varadega seotud API lõpp-punktid.
-# 'prefix' lisab iga siin defineeritud URLi ette "/assets".
-# 'tags' grupeerib need API dokumentatsioonis "Assets" sildi alla.
 router = APIRouter(
     prefix="/assets",
     tags=["Assets"]
 )
 
-# Hiljem tuleb siin ära asendada päris andmete vastu
-FAKE_ASSETS_DB = [
-    {"id": 1, "hostname": "server01.local", "ip_address": "192.168.1.10", "os_version": "Ubuntu 22.04"},
-    {"id": 2, "hostname": "server02.local", "ip_address": "192.168.1.11", "os_version": "CentOS 9"}
-]
+# Dependency to get Jira service
+def get_jira_service():
+    try:
+        jira_client = JiraClient()
+        return JiraService(jira_client)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Jira configuration error: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize Jira service: {str(e)}"
+        )
 
 @router.get("/", response_model=List[asset.Asset])
-def get_all_assets():
-    # tuleb siin ka hiljem päris andmete vastu vahetada
-    return FAKE_ASSETS_DB
+def get_all_assets(jira_service: JiraService = Depends(get_jira_service)):
+    """Get all assets from Jira Asset Manager."""
+    try:
+        # Get assets from Jira
+        jira_assets = jira_service.get_all_assets()
+        
+        # Convert Jira assets to our asset schema format
+        assets = []
+        for jira_asset in jira_assets:
+            # Extract basic information from Jira asset
+            hostname = jira_asset.label
+            ip_address = "Unknown"
+            os_version = "Unknown"
+            
+            # Try to extract IP and OS from attributes
+            for attr in jira_asset.attributes:
+                if attr.objectTypeAttributeId == "IP Address" or attr.objectTypeAttributeId == "IP":
+                    if attr.objectAttributeValues:
+                        ip_address = attr.objectAttributeValues[0].get("value", "Unknown")
+                elif attr.objectTypeAttributeId == "Operating System" or attr.objectTypeAttributeId == "Distribution":
+                    if attr.objectAttributeValues:
+                        os_version = attr.objectAttributeValues[0].get("value", "Unknown")
+            
+            assets.append(asset.Asset(
+                id=int(jira_asset.id),
+                hostname=hostname,
+                ip_address=ip_address,
+                os_version=os_version
+            ))
+        
+        return assets
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get assets: {str(e)}"
+        )

@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field, json
 from pathlib import Path
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -10,17 +11,17 @@ class Settings(BaseSettings):
     base_dir: Path = Field(default=Path(__file__).parent.parent)
 
     # --- Database ---
-    database_url: str = Field(..., description="Database connection string (SQLAlchemy URL)")
+    database_url: str = Field("sqlite:///./cmdb.db", description="Database connection string (SQLAlchemy URL)")
 
     # --- Redis / Celery ---
     redis_url: str = Field("redis://localhost:6379/0", description="Redis broker URL for Celery")
     celery_result_backend: str = Field("redis://localhost:6379/1", description="Redis backend for Celery results")
 
     # --- Jira ---
-    jira_url: str = Field(..., description="Jira base URL, e.g. https://yourcompany.atlassian.net")
-    jira_api_token: str = Field(..., description="Jira API token")
-    jira_user_email: str = Field(..., description="Email of API user")
-    jira_asset_workspace_id: str = Field(..., description="ID of the Jira Assets workspace")
+    jira_url: Optional[str] = Field(None, description="Jira base URL, e.g. https://yourcompany.atlassian.net")
+    jira_api_token: Optional[str] = Field(None, description="Jira API token")
+    jira_user_email: Optional[str] = Field(None, description="Email of API user")
+    jira_asset_workspace_id: Optional[str] = Field(None, description="ID of the Jira Assets workspace")
 
     # --- Ansible ---
     ansible_inventory_path: str = Field("inventories/default_inventory.ini")
