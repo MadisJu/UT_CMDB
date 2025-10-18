@@ -1,23 +1,15 @@
 import os
 from datetime import timedelta
 from celery import Celery
+from dotenv import load_dotenv
+from main import celery_app
 
-
-# Broker/Backendd
-broker_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-celery_app = Celery("cmdb_scheduler", broker=broker_url, backend=broker_url)
-
-celery_app.conf.update(
-    task_default_queue="ansible",
-    timezone="UTC",
-)
-
+load_dotenv()
 
 def _get_schedule_config():
     host = os.getenv("CMDB_HOST", "25.44.45.59")
     user = os.getenv("CMDB_USER", "chronia")
     interval_seconds = int(os.getenv("CMDB_INTERVAL_SECONDS", "3600"))
-
     inventory = host
     return inventory, user, interval_seconds
 
