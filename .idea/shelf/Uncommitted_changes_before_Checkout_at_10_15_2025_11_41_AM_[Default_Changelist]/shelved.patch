@@ -1,0 +1,19 @@
+Index: src/worker/main.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from celery import Celery\r\nimport os\r\nfrom celery.schedules import crontab\r\n\r\nbroker_url = os.getenv(\"CELERY_BROKER_URL\", \"redis://localhost:6379/0\")\r\ncelery_app = Celery(\"cmdb_worker\", broker=broker_url, backend=broker_url)\r\n\r\ncelery_app.conf.update(\r\n    task_default_queue=\"ansible\",\r\n    worker_concurrency=2,\r\n    task_time_limit=600,\r\n)\r\n\r\nfrom worker.tasks.discovery import discovery_task\r\nfrom worker.tasks.sync_to_jira import sync_task\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/worker/main.py b/src/worker/main.py
+--- a/src/worker/main.py	
++++ b/src/worker/main.py	
+@@ -11,6 +11,6 @@
+     task_time_limit=600,
+ )
+ 
+-from worker.tasks.discovery import discovery_task
+-from worker.tasks.sync_to_jira import sync_task
++from src.worker.tasks.discovery import discovery_task
++from src.worker.tasks.sync_to_jira import sync_task
+ 

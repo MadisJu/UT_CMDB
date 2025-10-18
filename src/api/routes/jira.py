@@ -1,84 +1,54 @@
-import os
-import requests
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from ..schemas.jira import JiraAsset, JiraAQLResponse
+from src.core.services.jira_service import JiraService
+from src.core.integrations.jira_client import JiraClient
 
 router = APIRouter(
     prefix="/jira",
     tags=["Jira Integration"]
 )
 
-# Loeb .env failist võetud seaded
-def get_jira_config():
-    config_vars = {
-        "url": os.getenv("JIRA_URL"),
-        "user": os.getenv("JIRA_API_USER"),
-        "token": os.getenv("JIRA_API_TOKEN"),
-        "workspaceId": os.getenv("JIRA_WORKSPACE_ID"),
-        "cloudId": os.getenv("JIRA_CLOUD_ID")
-    }
-    if not all(config_vars.values()):
+# Dependency to get Jira service
+def get_jira_service():
+    try:
+        jira_client = JiraClient()
+        return JiraService(jira_client)
+    except ValueError as e:
         raise HTTPException(
             status_code=500,
-            detail="Jira seadistus .env on puudulik. Kontrolli kõiki 5 JIRA muutujat."
-        )
-    return config_vars
-
-@router.get("/assets", response_model=List[JiraAsset])
-def get_jira_assets(
-    aql_query: str = "ObjectType = \"Servers\"",
-    config: dict = Depends(get_jira_config)
-):
-    """Hangib varad Jira Asset Managerist kasutades AQL päringut."""
-
-    api_endpoint = f"https://api.atlassian.com/ex/jira/{config['cloudId']}/jsm/assets/workspace/{config['workspaceId']}/v1/aql/objects"
-
-    headers = {"Accept": "application/json"}
-    auth = (config['user'], config['token'])
-    params = {"qlQuery": aql_query, "resultsPerPage": 50}
-
-    try:
-        response = requests.get(api_endpoint, headers=headers, params=params, auth=auth)
-        response.raise_for_status()
-
-        data = JiraAQLResponse(**response.json())
-        return data.objectEntries
-
-    except requests.exceptions.HTTPError as e:
-        raise HTTPException(
-            status_code=e.response.status_code,
-            detail=f"Viga Jira API päringus: {e.response.text}"
+            detail=f"Jira configuration error: {str(e)}"
         )
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Tekkis ootamatu viga andmete valideerimisel: {e}"
+            detail=f"Failed to initialize Jira service: {str(e)}"
         )
 
-
-#Test for seeing all the schemas
-@router.get("/test-schemas", tags=["Jira Integration (Debug)"])
-def get_jira_schemas(config: dict = Depends(get_jira_config)):
-    """
-    [TESTIMISEKS] Proovib kätte saada kõik Asset skeemid uue API kaudu.
-    """
-
-    api_endpoint = f"https://api.atlassian.com/ex/jira/{config['cloudId']}/jsm/assets/workspace/{config['workspaceId']}/v1/objectschema/list"
-    headers = {"Accept": "application/json"}
-    auth = (config['user'], config['token'])
-
+@router.get("/assets", response_model=List[JiraAsset])
+def get_jira_assets(
+    aql_query: str = "ObjectType = \"Servers\"",
+    jira_service: JiraService = Depends(get_jira_service)
+):
+    """Get assets from Jira Asset Manager using AQL query."""
     try:
-        response = requests.get(api_endpoint, headers=headers, auth=auth)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.HTTPError as e:
+        return jira_service.get_all_assets(aql_query)
+    except Exception as e:
         raise HTTPException(
-            status_code=e.response.status_code,
-            detail=f"Viga Jira API päringus: {e.response.text}"
+            status_code=500,
+            detail=f"Failed to get assets from Jira: {str(e)}"
         )
-    except requests.exceptions.RequestException as e:
+
+
+@router.get("/schemas", tags=["Jira Integration (Debug)"])
+def get_jira_schemas(jira_service: JiraService = Depends(get_jira_service)):
+    """
+    Get all asset schemas from Jira.
+    """
+    try:
+        return jira_service.get_asset_schemas()
+    except Exception as e:
         raise HTTPException(
-            status_code=503,
-            detail=f"Jira API-ga ei saanud ühendust: {e}"
+            status_code=500,
+            detail=f"Failed to get asset schemas from Jira: {str(e)}"
         )
