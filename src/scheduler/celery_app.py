@@ -1,14 +1,16 @@
 import os
+import sys
 from datetime import timedelta
-from celery import Celery
+from pathlib import Path
+from src.core.configs.celery_config import celery_app
 from src.core.services.machine_inventory import MachineInventory
 import logging
 
-logger = logging.getLogger(__name__)
+# Add the project root to Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-# Use memory broker (no external dependencies needed)
-broker_url = "memory://"
-celery_app = Celery("cmdb_scheduler", broker=broker_url, backend=broker_url)
+logger = logging.getLogger(__name__)
 
 celery_app.conf.update(
     task_default_queue="ansible",

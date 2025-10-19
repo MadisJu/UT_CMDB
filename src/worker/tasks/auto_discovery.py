@@ -3,7 +3,14 @@ Automatic discovery task for all configured machines.
 """
 
 import logging
-from worker.main import celery_app
+import sys
+from pathlib import Path
+
+# Add the project root to Python path
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from src.core.configs.celery_config import celery_app
 from src.core.services.machine_inventory import MachineInventory
 from src.core.plugins.ansible_plugin import AnsiblePlugin
 from src.core.models.fact_parser import parse_facts_to_asset
@@ -149,12 +156,13 @@ def auto_discovery_task(self):
         raise self.retry(exc=exc, countdown=60)
 
 
-@celery_app.task(name="worker.tasks.discovery.discovery_by_type_task", bind=True, max_retries=3)
+@celery_app.task(name="worker.tasks.discovery.discovery_by_type_task", max_retries=3, bind=True)
 def discovery_by_type_task(self, machine_type: str):
     """
     Celery task for discovering machines of a specific type.
     
     Args:
+        self: The Celery task instance.
         machine_type: Type of machines to discover (e.g., 'linux', 'windows')
         
     Returns:

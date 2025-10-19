@@ -1,7 +1,13 @@
-import ansible_runner
 import json
 import logging
-from worker.main import celery_app
+import sys
+from pathlib import Path
+
+# Add the project root to Python path
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from src.core.configs.celery_config import celery_app
 from src.core.plugins.ansible_plugin import AnsiblePlugin
 from src.core.models.fact_parser import parse_facts_to_asset
 from src.core.models.asset_model import HostAsset
@@ -10,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 api_url = "http://localhost:8000/discovery/results"
 
-@celery_app.task(name="worker.tasks.discovery.discovery_task", bind=True, max_retries=3)
-def discovery_task(self, host, user):
+@celery_app.task(name="worker.tasks.discovery.discovery_task", max_retries=3)
+def discovery_task(host, user):
     """
     Celery task for discovering host facts using Ansible.
     
@@ -67,8 +73,8 @@ def discovery_task(self, host, user):
         raise self.retry(exc=exc, countdown=60)
 
 
-@celery_app.task(name="worker.tasks.discovery.batch_discovery_task", bind=True, max_retries=3)
-def batch_discovery_task(self, hosts, user):
+@celery_app.task(name="worker.tasks.discovery.batch_discovery_task", max_retries=3)
+def batch_discovery_task(hosts, user):
     """
     Celery task for discovering multiple hosts using Ansible.
     

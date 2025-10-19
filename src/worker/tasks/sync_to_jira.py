@@ -1,5 +1,12 @@
 import logging
-from worker.main import celery_app
+import sys
+from pathlib import Path
+
+# Add the project root to Python path
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from src.core.configs.celery_config import celery_app
 from src.core.services.jira_service import JiraService
 from src.core.integrations.jira_client import JiraClient
 from src.core.models.asset_model import HostAsset, LinuxAsset, WindowsAsset, SparcAsset
@@ -9,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Task for syncing data to JIRA
 
-@celery_app.task(name="worker.tasks.sync_to_jira.sync_task", bind=True, max_retries=3)
+@celery_app.task(name="worker.tasks.sync_to_jira.sync_task", max_retries=3, bind=True)
 def sync_task(self, payload):
     """
     Celery task for syncing assets to Jira.
@@ -102,7 +109,7 @@ def sync_task(self, payload):
         raise self.retry(exc=exc, countdown=60)
 
 
-@celery_app.task(name="worker.tasks.sync_to_jira.sync_discovered_assets", bind=True, max_retries=3)
+@celery_app.task(name="worker.tasks.sync_to_jira.sync_discovered_assets", max_retries=3, bind=True)
 def sync_discovered_assets(self, discovery_result):
     """
     Celery task for syncing discovered assets to Jira.
