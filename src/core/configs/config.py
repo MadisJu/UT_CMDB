@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     # --- Database ---
     database_url: str = Field("sqlite:///./cmdb.db", description="Database connection string (SQLAlchemy URL)")
 
-    celery_result_backend: str = Field("db+sqlite:///celery_results.db", description="Celery results backend")
+    celery_broker_url: str = Field("sqlalchemy+sqlite:///celery_broker.db", description="Celery broker URL", alias="CELERY_BROKER_URL")
+    celery_result_backend: str = Field("db+sqlite:///celery_results.db", description="Celery results backend", alias="CELERY_RESULT_BACKEND")
 
     # --- Jira ---
     jira_url: Optional[str] = Field(None, description="Jira base URL, e.g. https://yourcompany.atlassian.net")

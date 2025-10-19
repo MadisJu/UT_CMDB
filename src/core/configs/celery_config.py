@@ -11,9 +11,10 @@ sys.path.insert(0, str(project_root))
 # Load environment variables
 load_dotenv(project_root / "src" / "core" / "configs" / ".env")
 
-# Get broker and backend URLs from environment variables
-broker_url = os.getenv("CELERY_BROKER_URL", "sqlalchemy+sqlite:///celery_broker.db")
-backend_url = os.getenv("CELERY_RESULT_BACKEND", "db+sqlite:///celery_results.db")
+# Get broker and backend URLs from settings
+from src.core.configs.config import settings
+broker_url = settings.celery_broker_url
+backend_url = settings.celery_result_backend
 
 celery_app = Celery("cmdb_worker", broker=broker_url, backend=backend_url)
 
