@@ -22,3 +22,5 @@ python-json-logger>=2.0.0
 
 # Database support
 sqlalchemy>=2.0.0
+
+pytest 
