@@ -23,7 +23,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install -r src/requirements.txt  # if you rely on the inner file
           pip install pytest
 
       - name: Run tests
