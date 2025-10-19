@@ -1,0 +1,30 @@
+Index: src/worker/tasks/sync_to_jira.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from worker.main import celery_app\r\n\r\n# Task for syncing data to JIRA\r\n\r\n@celery_app.task(name=\"worker.tasks.sync_to_jira.sync_task\", bind=True, max_retries=3)\r\ndef sync_task(self, payload):\r\n    try:\r\n        print(f\"uploading to JIRA: {payload}\")\r\n\r\n        #test\r\n                \r\n        return {\"status\": \"success\", \"synced_items\": len(payload)}\r\n    \r\n    except Exception as exc:\r\n        raise self.retry(exc=exc, countdown=60)
+===================================================================
+diff --git a/src/worker/tasks/sync_to_jira.py b/src/worker/tasks/sync_to_jira.py
+--- a/src/worker/tasks/sync_to_jira.py	
++++ b/src/worker/tasks/sync_to_jira.py	
+@@ -1,4 +1,4 @@
+-from worker.main import celery_app
++from src.worker.main import celery_app
+ 
+ # Task for syncing data to JIRA
+ 
+Index: src/worker/tasks/discovery.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import ansible_runner\r\nimport json\r\nfrom worker.main import celery_app\r\n\r\n# Task for getting data from Ansible\r\n\r\n@celery_app.task(name=\"worker.tasks.discovery.discovery_task\", bind=True, max_retries=3)\r\ndef discovery_task(self, host, user):\r\n    try:\r\n        r = ansible_runner.run(\r\n            private_data_dir=\"/tmp\",\r\n            inventory=host,\r\n            module=\"setup\",\r\n            host_pattern=\"all\",\r\n            extravars={\"ansible_user\": user}\r\n        )\r\n        facts = r.get_fact_cache(host)\r\n        print(json.dumps(facts, indent=2))\r\n        return facts\r\n    \r\n    except Exception as exc:\r\n        raise self.retry(exc=exc, countdown=60)
+===================================================================
+diff --git a/src/worker/tasks/discovery.py b/src/worker/tasks/discovery.py
+--- a/src/worker/tasks/discovery.py	
++++ b/src/worker/tasks/discovery.py	
+@@ -1,6 +1,6 @@
+ import ansible_runner
+ import json
+-from worker.main import celery_app
++from src.worker.main import celery_app
+ 
+ # Task for getting data from Ansible
+ 
