@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routes import jira, assets, jobs, sync, discovery
+from .routes import jira, assets, jobs, sync, discovery, inventory
 from dotenv import load_dotenv
 from .middleware import add_process_time_header
 
@@ -19,6 +19,7 @@ app.include_router(assets.router)
 app.include_router(jobs.router)
 app.include_router(sync.router)
 app.include_router(discovery.router)
+app.include_router(inventory.router)
 
 @app.get("/")
 def read_root():

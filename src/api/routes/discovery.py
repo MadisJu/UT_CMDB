@@ -1,41 +1,165 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, Depends, HTTPException
 import uuid
-from pydantic import BaseModel
+from typing import Optional
+from src.core.plugins.ansible_plugin import AnsiblePlugin
+from src.core.models.fact_parser import parse_ansible_facts, parse_linux_facts, parse_windows_facts, parse_sparc_facts
+from src.core.models.asset_model import HostAsset, LinuxAsset, WindowsAsset, SparcAsset
+from src.worker.tasks.discovery import discovery_task, batch_discovery_task
+from src.worker.tasks.auto_discovery import auto_discovery_task, discovery_by_type_task
+from src.core.services.machine_inventory import MachineInventory
+import logging
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/discovery",
     tags=["Discovery"]
 )
 
-class DiscoveryResult(BaseModel):
-    assets: dict  
-    job_id: str
+# Dependency to get Ansible plugin
+def get_ansible_plugin():
+    return AnsiblePlugin()
+
+# Dependency to get machine inventory
+def get_machine_inventory():
+    return MachineInventory()
 
 @router.post("/", status_code=status.HTTP_202_ACCEPTED)
-def start_discovery_job():
+def start_discovery_job(
+    target_host: Optional[str] = None,
+    ansible_plugin: AnsiblePlugin = Depends(get_ansible_plugin)
+):
     """
-    Algatab uue varade avastamise töö.
+    Start a new asset discovery job.
 
-    See on pikaajaline operatsioon, mis käivitatakse taustal.
-    API tagastab koheselt vastuse koos töö ID-ga, et selle staatust saaks jälgida.
+    This is a long-running operation that runs in the background.
+    API returns immediately with a job ID to track the status.
     """
-    # Genereerime tööle unikaalse ID.
-    job_id = str(uuid.uuid4())
-    
-    # TULEVIKUS: Siin antaks see töö üle Celery workerile.
-    # Näiteks: run_discovery_task.delay()
-    
-    # Hetkel tagastame staatilise vastuse, mis kinnitab, et töö on vastu võetud.
-    return {"message": "Asset discovery job has been started.", "job_id": job_id}
+    try:
+        # Generate unique job ID
+        job_id = str(uuid.uuid4())
+        
+        # Use default target if not provided
+        if not target_host:
+            import os
+            target_host = os.getenv("CMDB_HOST", "25.44.45.59")
+        
+        # Start Celery task for discovery
+        task = discovery_task.delay(target_host, os.getenv("CMDB_USER", "chronia"))
+        
+        logger.info(f"Started discovery job {job_id} for host {target_host}")
+        
+        return {
+            "message": "Asset discovery job has been started.", 
+            "job_id": job_id,
+            "task_id": task.id,
+            "target_host": target_host
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start discovery job: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start discovery job: {str(e)}"
+        )
 
+@router.post("/auto", status_code=status.HTTP_202_ACCEPTED)
+def start_auto_discovery_job(
+    inventory: MachineInventory = Depends(get_machine_inventory)
+):
+    """
+    Start automatic discovery of all configured machines.
+    """
+    try:
+        # Generate unique job ID
+        job_id = str(uuid.uuid4())
+        
+        # Start Celery task for auto discovery
+        task = auto_discovery_task.delay()
+        
+        logger.info(f"Started auto discovery job {job_id}")
+        
+        return {
+            "message": "Auto discovery job has been started.", 
+            "job_id": job_id,
+            "task_id": task.id,
+            "target_machines": len(inventory.get_enabled_machines())
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start auto discovery job: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start auto discovery job: {str(e)}"
+        )
 
-@router.post("/results", status_code=status.HTTP_200_OK)
-def receive_discovery_results(data: DiscoveryResult):
+@router.post("/type/{machine_type}", status_code=status.HTTP_202_ACCEPTED)
+def start_type_discovery_job(
+    machine_type: str,
+    inventory: MachineInventory = Depends(get_machine_inventory)
+):
     """
-    Saab workerilt ansible taski data kujul ({"assets": [...], "job_id": "..."}).
+    Start discovery for machines of a specific type.
     """
-    print(f"Received discovery results for job {data.job_id}: {data.assets}")
+    try:
+        # Generate unique job ID
+        job_id = str(uuid.uuid4())
+        
+        # Start Celery task for type discovery
+        task = discovery_by_type_task.delay(machine_type)
+        
+        logger.info(f"Started {machine_type} discovery job {job_id}")
+        
+        return {
+            "message": f"{machine_type.title()} discovery job has been started.", 
+            "job_id": job_id,
+            "task_id": task.id,
+            "machine_type": machine_type,
+            "target_machines": len(inventory.get_machines_by_type(machine_type))
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start {machine_type} discovery job: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start {machine_type} discovery job: {str(e)}"
+        )
+
+@router.post("/immediate", status_code=status.HTTP_200_OK)
+def discover_immediate(
+    target_host: str,
+    ansible_plugin: AnsiblePlugin = Depends(get_ansible_plugin)
+):
+    """
+    Perform immediate asset discovery for a specific host.
     
-    
-    return {"message": "Discovery results received successfully", "job_id": data.job_id}
+    This runs synchronously and returns the discovered asset data.
+    """
+    try:
+        # Use Ansible plugin to discover the host
+        facts = ansible_plugin.discover(target_host)
+        
+        # Parse facts into appropriate asset model
+        if facts.get("os", "").lower() in ["linux", "ubuntu", "centos", "rhel", "debian"]:
+            asset = parse_linux_facts(facts)
+        elif facts.get("os", "").lower() in ["windows"]:
+            asset = parse_windows_facts(facts)
+        elif facts.get("os", "").lower() in ["solaris"]:
+            asset = parse_sparc_facts(facts)
+        else:
+            asset = parse_ansible_facts(facts)
+        
+        logger.info(f"Discovered asset: {asset.hostname}")
+        
+        return {
+            "message": "Asset discovery completed successfully",
+            "asset": asset.dict(),
+            "target_host": target_host
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to discover asset for {target_host}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to discover asset: {str(e)}"
+        )
