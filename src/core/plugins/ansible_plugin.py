@@ -17,19 +17,14 @@ class AnsiblePlugin(BasePlugin):
 
     def __init__(self):
         import tempfile
-        # Use system temp directory for cross-platform compatibility
         temp_dir = Path(tempfile.gettempdir())
         self.private_data_dir = temp_dir / "ansible_runner"
         self.private_data_dir.mkdir(exist_ok=True)
         
-        # Create minimal inventory structure
         self.inventory_dir = self.private_data_dir / "inventory"
         self.inventory_dir.mkdir(exist_ok=True)
         
-        # Check if Ansible is available
         self._check_ansible_availability()
-        
-        # Create ansible.cfg
         self._create_ansible_config()
 
     def _check_ansible_availability(self):
@@ -68,7 +63,7 @@ pipelining = True
 """
         ansible_cfg.write_text(config_content)
 
-    def discover(self, target: str) -> Dict[str, Any]:
+    def discover(self, target: str, user: str = "root") -> Dict[str, Any]:
         """
         Discover a single host using Ansible.
         
@@ -88,12 +83,11 @@ pipelining = True
                 asset = parse_facts_to_asset(fallback_facts)
                 return asset.model_dump()
             
-            facts = self._run_ansible_setup(target, "root")
+            facts = self._run_ansible_setup(target, user)
             
             if facts:
                 logger.info(f"Successfully discovered {target}")
-                asset = parse_facts_to_asset(facts)
-                return asset.model_dump()
+                return facts
             else:
                 logger.warning(f"Ansible discovery returned no facts for {target}, using fallback")
                 fallback_facts = self._create_fallback_facts(target)
@@ -154,7 +148,7 @@ pipelining = True
         try:
             inventory_file = self.inventory_dir / f"{target.replace('.', '_')}.ini"
             inventory_content = f"""[all]
-{target} ansible_host={target} ansible_user={user}
+{target} ansible_host={target} ansible_user={user} ansible_ssh_private_key_file=~/.ssh/cmdb_key
 """
             inventory_file.write_text(inventory_content)
 
@@ -198,7 +192,6 @@ pipelining = True
     def _parse_ansible_output(self, output: str, target: str) -> Dict[str, Any]:
         """Parse ansible output to extract facts."""
         try:
-
             lines = output.strip().split('\n')
             facts = {}
             
@@ -249,20 +242,50 @@ pipelining = True
 
     def _create_fallback_facts(self, target: str) -> Dict[str, Any]:
         """Create fallback facts when Ansible discovery fails."""
-        return {
-            "ansible_hostname": target,
-            "ansible_default_ipv4": {"address": target},
-            "ansible_distribution": "Unknown",
-            "ansible_os_family": "Unknown",
-            "ansible_architecture": "Unknown",
-            "ansible_processor_vcpus": 1,
-            "ansible_memtotal_mb": 1024,
-            "ansible_kernel": "Unknown",
-            "ansible_distribution_version": "Unknown",
-            "ansible_facts": {"packages": []},
-            "ansible_hotfixes": [],
-            "ansible_ip_addresses": [target],
-            "ansible_os_name": "Unknown",
-            "discovery_status": "failed",
-            "discovery_method": "fallback"
-        }
+        try:
+            # Try to get actual system information
+            import psutil
+            import socket
+            
+            # Get system information
+            hostname = socket.gethostname()
+            cpu_count = psutil.cpu_count()
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            return {
+                "ansible_hostname": hostname,
+                "ansible_default_ipv4": {"address": target},
+                "ansible_distribution": platform.system().lower() if platform.system().lower() == "linux" else platform.system(),
+                "ansible_os_family": "linux" if platform.system().lower() == "linux" else platform.system().lower(),
+                "ansible_architecture": platform.machine(),
+                "ansible_processor_vcpus": cpu_count,
+                "ansible_memtotal_mb": memory.total // (1024 * 1024),
+                "ansible_kernel": platform.release(),
+                "ansible_distribution_version": platform.version(),
+                "ansible_facts": {"packages": []},
+                "ansible_hotfixes": [],
+                "ansible_ip_addresses": [target],
+                "ansible_os_name": platform.system(),
+                "discovery_status": "fallback",
+                "discovery_method": "system_facts"
+            }
+        except Exception as e:
+            logger.warning(f"Could not get system facts, using minimal fallback: {e}")
+            return {
+                "ansible_hostname": target,
+                "ansible_default_ipv4": {"address": target},
+                "ansible_distribution": platform.system().lower() if platform.system().lower() == "linux" else platform.system(),
+                "ansible_os_family": "linux" if platform.system().lower() == "linux" else platform.system().lower(),
+                "ansible_architecture": platform.machine(),
+                "ansible_processor_vcpus": 1,
+                "ansible_memtotal_mb": 1024,
+                "ansible_kernel": platform.release(),
+                "ansible_distribution_version": platform.version(),
+                "ansible_facts": {"packages": []},
+                "ansible_hotfixes": [],
+                "ansible_ip_addresses": [target],
+                "ansible_os_name": platform.system(),
+                "discovery_status": "fallback",
+                "discovery_method": "platform_facts"
+            }

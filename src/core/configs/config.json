@@ -1,8 +1,8 @@
 {
   "all": [
     {
-      "hostname": "25.44.45.59",
-      "ip_address": "25.44.45.59",
+      "hostname": "192.168.1.218",
+      "ip_address": "192.168.1.218",
       "user": "chronia",
       "type": "linux",
       "description": "Primary server",

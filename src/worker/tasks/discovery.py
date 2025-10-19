@@ -3,7 +3,6 @@ import logging
 import sys
 from pathlib import Path
 
-# Add the project root to Python path
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -14,10 +13,9 @@ from src.core.models.asset_model import HostAsset
 
 logger = logging.getLogger(__name__)
 
-# Task for getting data from Ansible
 
-@celery_app.task(name="worker.tasks.discovery.discovery_task", max_retries=3)
-def discovery_task(host, user):
+@celery_app.task(name="src.worker.tasks.discovery.discovery_task", max_retries=3, bind=True)
+def discovery_task(self, host, user):
     """
     Celery task for discovering host facts using Ansible.
     
@@ -31,40 +29,32 @@ def discovery_task(host, user):
     try:
         logger.info(f"Starting discovery task for host: {host}")
         
-        # Update task state
         self.update_state(
             state='PROGRESS',
             meta={'current': 0, 'total': 1, 'status': f'Discovering {host}...'}
         )
         
-        # Use Ansible plugin for discovery
         ansible_plugin = AnsiblePlugin()
-        facts = ansible_plugin.discover(host, user)
+        asset = ansible_plugin.discover(host, user)
         
-        # Parse facts into asset model
-        asset = parse_facts_to_asset(facts)
-        
-        # Update task state
         self.update_state(
             state='PROGRESS',
             meta={'current': 1, 'total': 1, 'status': f'Successfully discovered {host}'}
         )
         
-        logger.info(f"Successfully discovered {host}: {asset.hostname}")
+        logger.info(f"Successfully discovered {host}: {asset.get('hostname', 'unknown')}")
         
-        # Return asset data
         return {
             "status": "success",
             "host": host,
-            "asset": asset.dict(),
+            "asset": asset,
             "discovery_method": "ansible",
-            "facts_count": len(facts)
+            "facts_count": 1
         }
     
     except Exception as exc:
         logger.error(f"Discovery task failed for {host}: {exc}")
         
-        # Update task state with error
         self.update_state(
             state='FAILURE',
             meta={'current': 1, 'total': 1, 'status': f'Discovery failed for {host}: {str(exc)}'}
@@ -73,8 +63,8 @@ def discovery_task(host, user):
         raise self.retry(exc=exc, countdown=60)
 
 
-@celery_app.task(name="worker.tasks.discovery.batch_discovery_task", max_retries=3)
-def batch_discovery_task(hosts, user):
+@celery_app.task(name="src.worker.tasks.discovery.batch_discovery_task", max_retries=3, bind=True)
+def batch_discovery_task(self, hosts, user):
     """
     Celery task for discovering multiple hosts using Ansible.
     

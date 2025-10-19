@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Task for syncing data to JIRA
 
-@celery_app.task(name="worker.tasks.sync_to_jira.sync_task", max_retries=3, bind=True)
+@celery_app.task(name="src.worker.tasks.sync_to_jira.sync_task", max_retries=3, bind=True)
 def sync_task(self, payload):
     """
     Celery task for syncing assets to Jira.
@@ -109,7 +109,7 @@ def sync_task(self, payload):
         raise self.retry(exc=exc, countdown=60)
 
 
-@celery_app.task(name="worker.tasks.sync_to_jira.sync_discovered_assets", max_retries=3, bind=True)
+@celery_app.task(name="src.worker.tasks.sync_to_jira.sync_discovered_assets", max_retries=3, bind=True)
 def sync_discovered_assets(self, discovery_result):
     """
     Celery task for syncing discovered assets to Jira.

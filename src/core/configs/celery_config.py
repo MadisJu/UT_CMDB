@@ -1,18 +1,29 @@
 from celery import Celery
 import sys
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Add the project root to Python path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-# Use SQLite as broker (proper SQLite database)
-broker_url = "sqlalchemy+sqlite:///celery_broker.db"
-backend_url = "db+sqlite:///celery_results.db"
+# Load environment variables
+load_dotenv(project_root / "src" / "core" / "configs" / ".env")
+
+# Get broker and backend URLs from environment variables
+broker_url = os.getenv("REDIS_URL", "sqlalchemy+sqlite:///celery_broker.db")
+backend_url = os.getenv("CELERY_RESULT_BACKEND", "db+sqlite:///celery_results.db")
+
 celery_app = Celery("cmdb_worker", broker=broker_url, backend=backend_url)
 
 celery_app.conf.update(
     task_default_queue="ansible",
     worker_concurrency=2,
     task_time_limit=600,
+    include=[
+        'src.worker.tasks.discovery',
+        'src.worker.tasks.auto_discovery',
+        'src.worker.tasks.sync_to_jira',
+    ]
 )

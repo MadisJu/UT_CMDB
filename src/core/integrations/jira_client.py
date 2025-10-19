@@ -35,6 +35,19 @@ class JiraClient:
         
     def _load_config_from_env(self) -> JiraConfig:
         """Load Jira configuration from environment variables."""
+        try:
+            from src.core.configs.config import settings
+            if settings.jira_url and settings.jira_user_email and settings.jira_api_token:
+                return JiraConfig(
+                    url=settings.jira_url,
+                    user=settings.jira_user_email,
+                    token=settings.jira_api_token,
+                    workspace_id=settings.jira_asset_workspace_id,
+                    cloud_id=settings.jira_cloud_id
+                )
+        except Exception as e:
+            logger.warning(f"Failed to load Jira config from Settings: {e}")
+        
         config_vars = {
             "url": os.getenv("JIRA_URL"),
             "user": os.getenv("JIRA_API_USER"),
@@ -283,16 +296,13 @@ class JiraClient:
         
         for asset in assets:
             try:
-                # Try to create new asset
                 created_asset = self.create_asset(asset)
                 results["created"] += 1
                 logger.info(f"Created asset: {created_asset.objectKey}")
                 
             except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 409:  # Conflict - asset might already exist
+                if e.response.status_code == 409:
                     try:
-                        # Try to update existing asset
-                        # Note: This is a simplified approach - in practice you'd need to find the existing asset first
                         logger.warning(f"Asset might already exist, skipping: {asset.get('label', 'Unknown')}")
                         results["errors"] += 1
                         results["error_details"].append(f"Asset already exists: {asset.get('label', 'Unknown')}")
@@ -310,3 +320,50 @@ class JiraClient:
         
         logger.info(f"Sync completed: {results['created']} created, {results['updated']} updated, {results['errors']} errors")
         return results
+    
+    def _make_request(self, method: str, url: str, **kwargs) -> requests.Response:
+        """
+        Make a request with proper authentication and headers.
+        
+        Args:
+            method: HTTP method (GET, POST, PUT, DELETE)
+            url: Request URL
+            **kwargs: Additional arguments for requests
+            
+        Returns:
+            Response object
+        """
+        headers = kwargs.pop('headers', {})
+        headers.update(self._get_headers())
+        
+        auth = kwargs.pop('auth', self._get_auth())
+        
+        return requests.request(method, url, headers=headers, auth=auth, **kwargs)
+    
+    def create_issue(self, issue_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a Jira issue (fallback method when Asset Management fails).
+        
+        Args:
+            issue_data: The issue data to create
+            
+        Returns:
+            Created issue response
+        """
+        try:
+            unique_id = self.config.cloud_id
+            url = f"https://api.atlassian.com/ex/jira/{unique_id}/rest/api/3/issue"
+            
+            response = self._make_request("POST", url, json=issue_data)
+            
+            if response.status_code in [200, 201]:
+                issue = response.json()
+                logger.info(f"Successfully created Jira issue: {issue.get('key')}")
+                return issue
+            else:
+                logger.error(f"Failed to create Jira issue: {response.status_code} - {response.text}")
+                raise Exception(f"Failed to create issue: {response.text}")
+                
+        except Exception as e:
+            logger.error(f"Error creating Jira issue: {e}")
+            raise
