@@ -1,4 +1,0 @@
-pydantic-settings>=2.0.0
-pydantic
-ansible>=7.0
-ansible-runner>=2.3
