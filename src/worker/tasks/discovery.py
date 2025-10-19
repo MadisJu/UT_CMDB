@@ -13,6 +13,7 @@ from src.core.models.asset_model import HostAsset
 
 logger = logging.getLogger(__name__)
 
+api_url = "http://localhost:8000/discovery/results"
 
 @celery_app.task(name="src.worker.tasks.discovery.discovery_task", max_retries=3, bind=True)
 def discovery_task(self, host, user):
