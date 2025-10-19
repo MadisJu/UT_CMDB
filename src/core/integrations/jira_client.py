@@ -1,67 +1,42 @@
-import os
 import requests
+from requests.auth import HTTPBasicAuth
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import logging
 from src.api.schemas.jira import JiraAsset, JiraAssetAttribute, JiraAQLResponse
+from src.core.configs.config import Settings
 
 logger = logging.getLogger(__name__)
-
-
-class JiraConfig(BaseModel):
-    """Jira configuration model."""
-    url: str
-    user: str
-    token: str
-    workspace_id: str
-    cloud_id: str
 
 
 class JiraClient:
     """Jira Asset Management client for CMDB operations."""
     
-    def __init__(self, config: Optional[JiraConfig] = None):
+    def __init__(self, settings: Optional[Settings] = None):
         """
         Initialize Jira client.
         
         Args:
-            config: Jira configuration. If None, loads from environment variables.
+            settings: Application settings object. If None, loads from global settings.
         """
-        if config is None:
-            config = self._load_config_from_env()
+        if settings is None:
+            from src.core.configs.config import settings as global_settings
+            settings = global_settings
+            
+        self.email = settings.jira_user_email
+        self.token = settings.jira_api_token
+        self.cloud_id = settings.jira_cloud_id
+        self.workspace_id = settings.jira_asset_workspace_id
         
-        self.config = config
-        self.base_url = f"https://api.atlassian.com/ex/jira/{config.cloud_id}/jsm/assets/workspace/{config.workspace_id}/v1"
-        
-    def _load_config_from_env(self) -> JiraConfig:
-        """Load Jira configuration from environment variables."""
-        config_vars = {
-            "url": os.getenv("JIRA_URL"),
-            "user": os.getenv("JIRA_API_USER"),
-            "token": os.getenv("JIRA_API_TOKEN"),
-            "workspace_id": os.getenv("JIRA_WORKSPACE_ID"),
-            "cloud_id": os.getenv("JIRA_CLOUD_ID")
+        if not all([self.email, self.token, self.cloud_id, self.workspace_id]):
+            raise ValueError("Jira credentials, cloud ID, and workspace ID must be set in settings.")
+
+        self.base_url = f"https://api.atlassian.com/ex/jira/{self.cloud_id}/jsm/assets/workspace/{self.workspace_id}/v1"
+        self.auth = HTTPBasicAuth(self.email, self.token)
+        self.headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
         }
-        
-        if not all(config_vars.values()):
-            missing_vars = [k for k, v in config_vars.items() if not v]
-            raise ValueError(f"Missing Jira configuration variables: {missing_vars}")
-        
-        return JiraConfig(
-            url=config_vars["url"],
-            user=config_vars["user"],
-            token=config_vars["token"],
-            workspace_id=config_vars["workspace_id"],
-            cloud_id=config_vars["cloud_id"]
-        )
-    
-    def _get_auth(self) -> tuple:
-        """Get authentication tuple for requests."""
-        return (self.config.user, self.config.token)
-    
-    def _get_headers(self) -> dict:
-        """Get standard headers for requests."""
-        return {"Accept": "application/json", "Content-Type": "application/json"}
     
     def query_assets(self, aql_query: str = "ObjectType = \"Servers\"", results_per_page: int = 50) -> List[JiraAsset]:
         """
@@ -78,13 +53,11 @@ class JiraClient:
             requests.exceptions.HTTPError: If API request fails
         """
         endpoint = f"{self.base_url}/aql/objects"
-        headers = self._get_headers()
-        auth = self._get_auth()
         params = {"qlQuery": aql_query, "resultsPerPage": results_per_page}
         
         try:
             logger.info(f"Querying Jira assets with AQL: {aql_query}")
-            response = requests.get(endpoint, headers=headers, params=params, auth=auth)
+            response = requests.get(endpoint, headers=self.headers, params=params, auth=self.auth)
             response.raise_for_status()
             
             data = JiraAQLResponse(**response.json())
@@ -109,12 +82,10 @@ class JiraClient:
             requests.exceptions.HTTPError: If API request fails
         """
         endpoint = f"{self.base_url}/objectschema/list"
-        headers = self._get_headers()
-        auth = self._get_auth()
         
         try:
             logger.info("Fetching Jira asset schemas")
-            response = requests.get(endpoint, headers=headers, auth=auth)
+            response = requests.get(endpoint, headers=self.headers, auth=self.auth)
             response.raise_for_status()
             
             schemas = response.json()
@@ -142,12 +113,10 @@ class JiraClient:
             requests.exceptions.HTTPError: If API request fails
         """
         endpoint = f"{self.base_url}/objects"
-        headers = self._get_headers()
-        auth = self._get_auth()
         
         try:
             logger.info(f"Creating asset in Jira: {asset_data.get('label', 'Unknown')}")
-            response = requests.post(endpoint, headers=headers, json=asset_data, auth=auth)
+            response = requests.post(endpoint, headers=self.headers, json=asset_data, auth=self.auth)
             response.raise_for_status()
             
             created_asset = JiraAsset(**response.json())
@@ -176,12 +145,10 @@ class JiraClient:
             requests.exceptions.HTTPError: If API request fails
         """
         endpoint = f"{self.base_url}/objects/{asset_id}"
-        headers = self._get_headers()
-        auth = self._get_auth()
         
         try:
             logger.info(f"Updating asset in Jira: {asset_id}")
-            response = requests.put(endpoint, headers=headers, json=asset_data, auth=auth)
+            response = requests.put(endpoint, headers=self.headers, json=asset_data, auth=self.auth)
             response.raise_for_status()
             
             updated_asset = JiraAsset(**response.json())
@@ -209,12 +176,10 @@ class JiraClient:
             requests.exceptions.HTTPError: If API request fails
         """
         endpoint = f"{self.base_url}/objects/{asset_id}"
-        headers = self._get_headers()
-        auth = self._get_auth()
         
         try:
             logger.info(f"Deleting asset from Jira: {asset_id}")
-            response = requests.delete(endpoint, headers=headers, auth=auth)
+            response = requests.delete(endpoint, headers=self.headers, auth=self.auth)
             response.raise_for_status()
             
             logger.info(f"Successfully deleted asset: {asset_id}")
@@ -241,12 +206,10 @@ class JiraClient:
             requests.exceptions.HTTPError: If API request fails
         """
         endpoint = f"{self.base_url}/objects/{asset_id}"
-        headers = self._get_headers()
-        auth = self._get_auth()
         
         try:
             logger.info(f"Retrieving asset from Jira: {asset_id}")
-            response = requests.get(endpoint, headers=headers, auth=auth)
+            response = requests.get(endpoint, headers=self.headers, auth=self.auth)
             response.raise_for_status()
             
             asset = JiraAsset(**response.json())

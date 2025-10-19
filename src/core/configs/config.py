@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     jira_api_token: Optional[str] = Field(None, description="Jira API token")
     jira_user_email: Optional[str] = Field(None, description="Email of API user")
     jira_asset_workspace_id: Optional[str] = Field(None, description="ID of the Jira Assets workspace")
+    jira_cloud_id: Optional[str] = Field(None, description="Jira Cloud ID")
+
+    # --- CMDB ---
+    cmdb_host: Optional[str] = Field(None, description="CMDB host IP address")
+    cmdb_user: Optional[str] = Field(None, description="CMDB user")
+    cmdb_interval_seconds: Optional[int] = Field(None, description="CMDB discovery interval in seconds")
 
     # --- Ansible ---
     ansible_inventory_path: str = Field("inventories/default_inventory.ini")

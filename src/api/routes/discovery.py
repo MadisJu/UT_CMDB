@@ -1,4 +1,5 @@
-from fastapi import APIRouter, status, Depends, HTTPException
+from fastapi import APIRouter, status, Depends, HTTPException, Body
+from pydantic import BaseModel
 import uuid
 from typing import Optional
 from src.core.plugins.ansible_plugin import AnsiblePlugin
@@ -24,9 +25,14 @@ def get_ansible_plugin():
 def get_machine_inventory():
     return MachineInventory()
 
+class DiscoveryRequest(BaseModel):
+    target_host: Optional[str] = None
+    user: Optional[str] = None
+
+
 @router.post("/", status_code=status.HTTP_202_ACCEPTED)
 def start_discovery_job(
-    target_host: Optional[str] = None,
+    payload: DiscoveryRequest = Body(...),
     ansible_plugin: AnsiblePlugin = Depends(get_ansible_plugin)
 ):
     """
@@ -39,13 +45,13 @@ def start_discovery_job(
         # Generate unique job ID
         job_id = str(uuid.uuid4())
         
-        # Use default target if not provided
-        if not target_host:
-            import os
-            target_host = os.getenv("CMDB_HOST", "25.44.45.59")
-        
+        # Resolve target_host and user from request body with env fallbacks
+        import os
+        target_host = payload.target_host or os.getenv("CMDB_HOST", "25.44.45.59")
+        user = payload.user or os.getenv("CMDB_USER", "chronia")
+
         # Start Celery task for discovery
-        task = discovery_task.delay(target_host, os.getenv("CMDB_USER", "chronia"))
+        task = discovery_task.delay(target_host, user)
         
         logger.info(f"Started discovery job {job_id} for host {target_host}")
         
@@ -53,7 +59,8 @@ def start_discovery_job(
             "message": "Asset discovery job has been started.", 
             "job_id": job_id,
             "task_id": task.id,
-            "target_host": target_host
+            "target_host": target_host,
+            "user": user
         }
         
     except Exception as e:

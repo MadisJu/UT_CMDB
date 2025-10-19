@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.env
+
+# IDE folders
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+
+# Project cache
+ansible/fact_cache/

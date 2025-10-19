@@ -7,6 +7,7 @@ import json
 from typing import Dict, Any
 import platform
 import subprocess
+import ansible_runner
 
 logger = logging.getLogger(__name__)
 
@@ -63,17 +64,18 @@ fact_caching_connection = {self.private_data_dir}/fact_cache
 fact_caching_timeout = 86400
 
 [ssh_connection]
-ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o AddressFamily=inet
 pipelining = True
 """
         ansible_cfg.write_text(config_content)
 
-    def discover(self, target: str) -> Dict[str, Any]:
+    def discover(self, target: str, user: str = "root") -> Dict[str, Any]:
         """
         Discover a single host using Ansible.
         
         Args:
             target: Host IP or hostname to discover
+            user: The user to connect with
             
         Returns:
             Dictionary containing host facts
@@ -88,7 +90,7 @@ pipelining = True
                 asset = parse_facts_to_asset(fallback_facts)
                 return asset.model_dump()
             
-            facts = self._run_ansible_setup(target, "root")
+            facts = self._run_ansible_setup(target, user)
             
             if facts:
                 logger.info(f"Successfully discovered {target}")
@@ -157,6 +159,11 @@ pipelining = True
 {target} ansible_host={target} ansible_user={user}
 """
             inventory_file.write_text(inventory_content)
+            logger.debug(f"Ansible inventory file: {inventory_file}")
+            try:
+                logger.debug(f"Inventory contents:\n{inventory_file.read_text()} ")
+            except Exception:
+                pass
 
             cmd = [
                 "ansible",
@@ -164,11 +171,13 @@ pipelining = True
                 "all",
                 "-m", "setup",
                 "--one-line",
-                "-o"
+                "-o",
+                "-vvvv"  # verbose for debugging SSH connectivity
             ]
             
-            if platform.system() == "Windows":
-                cmd.extend(["-e", "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"])
+            # Avoid remote python interpreter auto-discovery by setting a common path
+            # If your remote uses a different path, expose it via settings and pass here
+            cmd.extend(["-e", "ansible_python_interpreter=/usr/bin/python3"])
             
             logger.debug(f"Running ansible command: {' '.join(cmd)}")
             
@@ -185,7 +194,13 @@ pipelining = True
                 facts = self._parse_ansible_output(result.stdout, target)
                 return facts
             else:
-                logger.error(f"Ansible command failed for {target}: {result.stderr}")
+                logger.error(
+                    "Ansible command failed for %s: rc=%s\nSTDOUT:\n%s\nSTDERR:\n%s",
+                    target,
+                    result.returncode,
+                    (result.stdout or "<empty>"),
+                    (result.stderr or "<empty>")
+                )
                 return None
                 
         except subprocess.TimeoutExpired:

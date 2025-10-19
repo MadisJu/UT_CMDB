@@ -1,7 +1,9 @@
+import logging
 from fastapi import FastAPI
 from .routes import jira, assets, jobs, sync, discovery, inventory
 from dotenv import load_dotenv
 from .middleware import add_process_time_header
+from src.core.database import create_db_and_tables
 
 # Laeb .env faili muutujad
 load_dotenv()
@@ -9,6 +11,15 @@ load_dotenv()
 app = FastAPI(
     title="CMDB API"
 )
+
+logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+def on_startup():
+    try:
+        create_db_and_tables()
+    except Exception as exc:
+        logger.warning("Database initialisation skipped: %s", exc, exc_info=True)
 
 # Aktiveerib middleware (jookseb iga päringu puhul)
 app.middleware("http")(add_process_time_header)
