@@ -25,12 +25,12 @@ def on_startup():
 app.middleware("http")(add_process_time_header)
 
 # Registreerime ruuterid
-app.include_router(jira.router)
-app.include_router(assets.router)
-app.include_router(jobs.router)
-app.include_router(sync.router)
-app.include_router(discovery.router)
-app.include_router(inventory.router)
+app.include_router(jira.router, prefix="/api/v1/jira", tags=["Jira"])
+app.include_router(assets.router, prefix="/api/v1/assets", tags=["Assets"])
+app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["Jobs"])
+app.include_router(sync.router, prefix="/api/v1/sync", tags=["Sync"])
+app.include_router(discovery.router, prefix="/api/v1/discovery", tags=["Discovery"])
+app.include_router(inventory.router, prefix="/api/v1/inventory", tags=["Inventory"])
 
 @app.get("/")
 def read_root():

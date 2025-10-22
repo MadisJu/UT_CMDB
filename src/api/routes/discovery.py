@@ -8,12 +8,12 @@ from src.core.models.asset_model import HostAsset, LinuxAsset, WindowsAsset, Spa
 from src.worker.tasks.discovery import discovery_task, batch_discovery_task
 from src.worker.tasks.auto_discovery import auto_discovery_task, discovery_by_type_task
 from src.core.services.machine_inventory import MachineInventory
+from src.worker.tasks.sync_to_jira import sync_discovered_assets
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/discovery",
     tags=["Discovery"]
 )
 
@@ -75,19 +75,20 @@ def start_auto_discovery_job(
     inventory: MachineInventory = Depends(get_machine_inventory)
 ):
     """
-    Start automatic discovery of all configured machines.
+    Start automatic discovery of all configured machines and sync to Jira.
     """
     try:
         # Generate unique job ID
         job_id = str(uuid.uuid4())
         
-        # Start Celery task for auto discovery
-        task = auto_discovery_task.delay()
+        # Chain the tasks: auto_discovery_task -> sync_discovered_assets
+        task_chain = (auto_discovery_task.s() | sync_discovered_assets.s())
+        task = task_chain.apply_async()
         
-        logger.info(f"Started auto discovery job {job_id}")
+        logger.info(f"Started auto discovery and sync job {job_id}")
         
         return {
-            "message": "Auto discovery job has been started.", 
+            "message": "Auto discovery and Jira sync job has been started.", 
             "job_id": job_id,
             "task_id": task.id,
             "target_machines": len(inventory.get_enabled_machines())
