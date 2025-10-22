@@ -41,16 +41,7 @@ class JiraClient:
     def query_assets(self, aql_query: str = "ObjectType = \"Servers\"", results_per_page: int = 50) -> List[JiraAsset]:
         """
         Query assets from Jira using AQL.
-        
-        Args:
-            aql_query: AQL query string
-            results_per_page: Number of results per page
-            
-        Returns:
-            List of Jira assets
-            
-        Raises:
-            requests.exceptions.HTTPError: If API request fails
+        (See oli õige, seda ei muuda)
         """
         endpoint = f"{self.base_url}/aql/objects"
         params = {"qlQuery": aql_query, "resultsPerPage": results_per_page}
@@ -74,12 +65,7 @@ class JiraClient:
     def get_asset_schemas(self) -> Dict[str, Any]:
         """
         Get all asset schemas from Jira.
-        
-        Returns:
-            Dictionary containing asset schemas
-            
-        Raises:
-            requests.exceptions.HTTPError: If API request fails
+        (See oli õige, seda ei muuda)
         """
         endpoint = f"{self.base_url}/objectschema/list"
         
@@ -112,7 +98,7 @@ class JiraClient:
         Raises:
             requests.exceptions.HTTPError: If API request fails
         """
-        endpoint = f"{self.base_url}/objects"
+        endpoint = f"{self.base_url}/object/create" # <--- PARANDATUD
         
         try:
             logger.info(f"Creating asset in Jira: {asset_data.get('label', 'Unknown')}")
@@ -144,7 +130,7 @@ class JiraClient:
         Raises:
             requests.exceptions.HTTPError: If API request fails
         """
-        endpoint = f"{self.base_url}/objects/{asset_id}"
+        endpoint = f"{self.base_url}/object/{asset_id}"  # <--- PARANDATUD
         
         try:
             logger.info(f"Updating asset in Jira: {asset_id}")
@@ -175,7 +161,8 @@ class JiraClient:
         Raises:
             requests.exceptions.HTTPError: If API request fails
         """
-        endpoint = f"{self.base_url}/objects/{asset_id}"
+    
+        endpoint = f"{self.base_url}/object/{asset_id}"  # <--- PARANDATUD
         
         try:
             logger.info(f"Deleting asset from Jira: {asset_id}")
@@ -205,7 +192,7 @@ class JiraClient:
         Raises:
             requests.exceptions.HTTPError: If API request fails
         """
-        endpoint = f"{self.base_url}/objects/{asset_id}"
+        endpoint = f"{self.base_url}/object/{asset_id}"  # <--- PARANDATUD
         
         try:
             logger.info(f"Retrieving asset from Jira: {asset_id}")
@@ -226,15 +213,8 @@ class JiraClient:
     def sync_assets(self, assets: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Sync multiple assets to Jira.
-        
-        Args:
-            assets: List of assets to sync
-            
-        Returns:
-            Sync results summary
-            
-        Raises:
-            requests.exceptions.HTTPError: If API request fails
+        (Seda funktsiooni ei pea muutma, sest see kutsub välja
+        juba parandatud 'create_asset' funktsiooni)
         """
         results = {
             "total": len(assets),
