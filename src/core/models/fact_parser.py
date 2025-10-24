@@ -74,6 +74,7 @@ def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
                 package_count = len(packages)
         
         return LinuxAsset(
+            type="linux",
             name=facts.get("ansible_hostname", "unknown"),
             type="linux",
             hostname=facts.get("ansible_hostname", "unknown"),
@@ -90,6 +91,7 @@ def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
         logger.error(f"Error parsing Linux facts: {e}")
         # Return minimal Linux asset on error
         return LinuxAsset(
+            type="linux",
             name=facts.get("ansible_hostname", "unknown"),
             type="linux",
             hostname=facts.get("ansible_hostname", "unknown"),
@@ -128,6 +130,7 @@ def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
             installed_updates = facts["ansible_hotfixes"]
         
         return WindowsAsset(
+            type="windows",
             name=facts.get("ansible_hostname", "unknown"),
             type="windows",
             hostname=facts.get("ansible_hostname", "unknown"),
@@ -143,6 +146,7 @@ def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
         logger.error(f"Error parsing Windows facts: {e}")
         # Return minimal Windows asset on error
         return WindowsAsset(
+            type="windows",
             name=facts.get("ansible_hostname", "unknown"),
             type="windows",
             hostname=facts.get("ansible_hostname", "unknown"),
@@ -175,6 +179,7 @@ def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
             ip_address = facts["ansible_ip_addresses"][0] if facts["ansible_ip_addresses"] else None
         
         return SparcAsset(
+            type="sparc",
             name=facts.get("ansible_hostname", "unknown"),
             type="sparc",
             hostname=facts.get("ansible_hostname", "unknown"),
@@ -190,6 +195,7 @@ def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
         logger.error(f"Error parsing SPARC facts: {e}")
         # Return minimal SPARC asset on error
         return SparcAsset(
+            type="sparc",
             name=facts.get("ansible_hostname", "unknown"),
             type="sparc",
             hostname=facts.get("ansible_hostname", "unknown"),

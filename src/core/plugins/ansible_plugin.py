@@ -1,11 +1,9 @@
 from src.core.plugins.base_plugin import BasePlugin
 from src.core.configs.config import settings
-from src.core.models.fact_parser import parse_facts_to_asset
 from pathlib import Path
 import logging
 import json
 from typing import Dict, Any
-import platform
 import subprocess
 
 logger = logging.getLogger(__name__)
@@ -58,114 +56,50 @@ fact_caching_connection = {self.private_data_dir}/fact_cache
 fact_caching_timeout = 86400
 
 [ssh_connection]
-ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o AddressFamily=inet
 pipelining = True
 """
         ansible_cfg.write_text(config_content)
 
     def discover(self, target: str, user: str = "root") -> Dict[str, Any]:
         """
-        Discover a single host using Ansible.
-        
-        Args:
-            target: Host IP or hostname to discover
-            
-        Returns:
-            Dictionary containing host facts
+        Discover a single host using Ansible and return raw facts.
         """
         try:
             logger.info(f"Starting Ansible discovery for {target}")
             
-            # Check if Ansible is available
             if not self.ansible_available:
-                logger.warning(f"Ansible not available, using fallback facts for {target}")
-                fallback_facts = self._create_fallback_facts(target)
-                asset = parse_facts_to_asset(fallback_facts)
-                return asset.model_dump()
+                logger.warning(f"Ansible not available, using fallback for {target}")
+                return self._create_fallback_facts(target)
             
             facts = self._run_ansible_setup(target, user)
             
-            if facts:
-                logger.info(f"Successfully discovered {target}")
-                return facts
-            else:
-                logger.warning(f"Ansible discovery returned no facts for {target}, using fallback")
-                fallback_facts = self._create_fallback_facts(target)
-                asset = parse_facts_to_asset(fallback_facts)
-                return asset.model_dump()
+            if not facts:
+                logger.warning(f"Discovery failed for {target}, using fallback")
+                return self._create_fallback_facts(target)
+
+            logger.info(f"Successfully gathered facts for {target}")
+            return facts
                 
         except Exception as e:
             logger.error(f"Error during Ansible discovery for {target}: {e}")
-            fallback_facts = self._create_fallback_facts(target)
-            asset = parse_facts_to_asset(fallback_facts)
-            return asset.model_dump()
-
-    def discover_all(self, targets: list[str]) -> Dict[str, Dict[str, Any]]:
-        """
-        Discover multiple hosts using Ansible.
-        
-        Args:
-            targets: List of host IPs or hostnames
-            
-        Returns:
-            Dictionary mapping hostnames to their facts
-        """
-        results = {}
-        
-        try:
-            logger.info(f"Starting Ansible discovery for {len(targets)} hosts")
-            
-            for target in targets:
-                try:
-                    facts = self._run_ansible_setup(target, "root")
-                    if facts:
-                        asset = parse_facts_to_asset(facts)
-                        results[target] = asset.model_dump()
-                    else:
-                        fallback_facts = self._create_fallback_facts(target)
-                        asset = parse_facts_to_asset(fallback_facts)
-                        results[target] = asset.model_dump()
-                except Exception as e:
-                    logger.error(f"Failed to discover {target}: {e}")
-                    fallback_facts = self._create_fallback_facts(target)
-                    asset = parse_facts_to_asset(fallback_facts)
-                    results[target] = asset.model_dump()
-            
-            logger.info(f"Completed discovery for {len(targets)} hosts")
-                    
-        except Exception as e:
-            logger.error(f"Error during batch Ansible discovery: {e}")
-
-            for target in targets:
-                fallback_facts = self._create_fallback_facts(target)
-                asset = parse_facts_to_asset(fallback_facts)
-                results[target] = asset.model_dump()
-        
-        return results
+            return self._create_fallback_facts(target)
 
     def _run_ansible_setup(self, target: str, user: str) -> Dict[str, Any]:
-        """Run ansible setup module using subprocess for Windows compatibility."""
+        """Run ansible setup module using subprocess."""
         try:
             inventory_file = self.inventory_dir / f"{target.replace('.', '_')}.ini"
-            inventory_content = f"""[all]
-{target} ansible_host={target} ansible_user={user} ansible_ssh_private_key_file=~/.ssh/cmdb_key
-"""
+            inventory_content = f"[all]\n{target} ansible_host={target} ansible_user={user}\n"
             inventory_file.write_text(inventory_content)
 
             cmd = [
-                "ansible",
-                "-i", str(inventory_file),
-                "all",
-                "-m", "setup",
-                "--one-line",
-                "-o"
+                "ansible", "-i", str(inventory_file), "all",
+                "-m", "setup", "-a", "gather_subset=all",
+                "--one-line", "-o",
+                "-e", "ansible_python_interpreter=/usr/bin/python3"
             ]
             
-            if platform.system() == "Windows":
-                cmd.extend(["-e", "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"])
-            
             logger.debug(f"Running ansible command: {' '.join(cmd)}")
-            
 
             result = subprocess.run(
                 cmd,
@@ -174,12 +108,17 @@ pipelining = True
                 text=True,
                 timeout=settings.ansible_timeout
             )
+
+            # --- Add this logging line to see the raw output ---
+            #logger.info(f"RAW ANSIBLE OUTPUT for {target}:\n{result.stdout}")
             
             if result.returncode == 0:
-                facts = self._parse_ansible_output(result.stdout, target)
-                return facts
+                return self._parse_ansible_output(result.stdout, target)
             else:
-                logger.error(f"Ansible command failed for {target}: {result.stderr}")
+                logger.error(
+                    "Ansible command failed for %s: rc=%s\nSTDOUT:\n%s\nSTDERR:\n%s",
+                    target, result.returncode, (result.stdout or "<empty>"), (result.stderr or "<empty>")
+                )
                 return None
                 
         except subprocess.TimeoutExpired:
@@ -193,99 +132,37 @@ pipelining = True
         """Parse ansible output to extract facts."""
         try:
             lines = output.strip().split('\n')
-            facts = {}
-            
             for line in lines:
-                if not line.strip():
-                    continue
-                    
                 if '|' in line and '=>' in line:
-                    parts = line.split('|')
-                    if len(parts) >= 2:
-                        hostname = parts[0].strip()
-                        fact_part = parts[1].split('=>', 1)
-                        if len(fact_part) >= 2:
-                            try:
-                                json_str = fact_part[1].strip()
-                                parsed_facts = json.loads(json_str)
-                                
-                                if 'ansible_facts' in parsed_facts:
-                                    facts.update(parsed_facts['ansible_facts'])
-                                
-                                for key, value in parsed_facts.items():
-                                    if key != 'ansible_facts':
-                                        facts[key] = value
-                                        
-                            except json.JSONDecodeError as e:
-                                logger.warning(f"Failed to parse JSON from ansible output: {e}")
-                                continue
-            
-            if not facts:
-                logger.warning(f"No facts parsed from ansible output for {target}")
-                fallback_facts = self._create_fallback_facts(target)
-                asset = parse_facts_to_asset(fallback_facts)
-                return asset.model_dump()
-            
-            facts.update({
-                "discovery_status": "success",
-                "discovery_method": "ansible_subprocess"
-            })
-            
-            asset = parse_facts_to_asset(facts)
-            return asset.model_dump()
-            
+                    parts = line.split('=>', 1)
+                    if len(parts) > 1:
+                        try:
+                            # Parse the entire JSON payload
+                            facts = json.loads(parts[1].strip())
+                            
+                            # Check if the expected key exists and return the whole object
+                            if 'ansible_facts' in facts:
+                                facts['ansible_facts']['discovery_status'] = "success"
+                                return facts['ansible_facts'] # Return the inner ansible_facts dictionary
+                        except json.JSONDecodeError as e:
+                            logger.error(f"JSON decode error in ansible output for {target}: {e}")
+                            continue
+            logger.warning(f"No valid facts JSON found in ansible output for {target}")
+            return None
         except Exception as e:
             logger.error(f"Error parsing ansible output for {target}: {e}")
-            fallback_facts = self._create_fallback_facts(target)
-            asset = parse_facts_to_asset(fallback_facts)
-            return asset.model_dump()
+            return None
 
     def _create_fallback_facts(self, target: str) -> Dict[str, Any]:
         """Create fallback facts when Ansible discovery fails."""
-        try:
-            # Try to get actual system information
-            import psutil
-            import socket
-            
-            # Get system information
-            hostname = socket.gethostname()
-            cpu_count = psutil.cpu_count()
-            memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
-            
-            return {
-                "ansible_hostname": hostname,
-                "ansible_default_ipv4": {"address": target},
-                "ansible_distribution": platform.system().lower() if platform.system().lower() == "linux" else platform.system(),
-                "ansible_os_family": "linux" if platform.system().lower() == "linux" else platform.system().lower(),
-                "ansible_architecture": platform.machine(),
-                "ansible_processor_vcpus": cpu_count,
-                "ansible_memtotal_mb": memory.total // (1024 * 1024),
-                "ansible_kernel": platform.release(),
-                "ansible_distribution_version": platform.version(),
-                "ansible_facts": {"packages": []},
-                "ansible_hotfixes": [],
-                "ansible_ip_addresses": [target],
-                "ansible_os_name": platform.system(),
-                "discovery_status": "fallback",
-                "discovery_method": "system_facts"
-            }
-        except Exception as e:
-            logger.warning(f"Could not get system facts, using minimal fallback: {e}")
-            return {
-                "ansible_hostname": target,
-                "ansible_default_ipv4": {"address": target},
-                "ansible_distribution": platform.system().lower() if platform.system().lower() == "linux" else platform.system(),
-                "ansible_os_family": "linux" if platform.system().lower() == "linux" else platform.system().lower(),
-                "ansible_architecture": platform.machine(),
-                "ansible_processor_vcpus": 1,
-                "ansible_memtotal_mb": 1024,
-                "ansible_kernel": platform.release(),
-                "ansible_distribution_version": platform.version(),
-                "ansible_facts": {"packages": []},
-                "ansible_hotfixes": [],
-                "ansible_ip_addresses": [target],
-                "ansible_os_name": platform.system(),
-                "discovery_status": "fallback",
-                "discovery_method": "platform_facts"
-            }
+        return {
+            "ansible_hostname": "unknown",
+            "ansible_default_ipv4": {"address": target},
+            "ansible_distribution": "Unknown",
+            "ansible_os_family": "Unknown",
+            "ansible_processor_vcpus": 1,
+            "ansible_memtotal_mb": 1024,
+            "ansible_kernel": "Unknown",
+            "discovery_status": "failed",
+            "discovery_method": "fallback"
+        }

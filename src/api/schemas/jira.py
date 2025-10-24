@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class JiraAssetAttribute(BaseModel):
     objectTypeAttributeId: str
@@ -9,7 +9,7 @@ class JiraAsset(BaseModel):
     id: str
     objectKey: str
     label: str
-    attributes: List[JiraAssetAttribute]
+    attributes: Optional[List[JiraAssetAttribute]] = None
 
 class JiraAQLResponse(BaseModel):
     objectEntries: List[JiraAsset]

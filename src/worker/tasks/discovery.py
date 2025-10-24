@@ -2,69 +2,94 @@ import json
 import logging
 import sys
 from pathlib import Path
+from typing import Any, Dict, Iterable, Optional
+from pydantic import ValidationError
 
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from src.core.models.asset_model import HostAsset, LinuxAsset, WindowsAsset, SparcAsset
 from src.core.configs.celery_config import celery_app
-from src.core.plugins.ansible_plugin import AnsiblePlugin
-from src.core.models.fact_parser import parse_facts_to_asset
-from src.core.models.asset_model import HostAsset
+from celery.exceptions import Ignore
 
 logger = logging.getLogger(__name__)
 
-api_url = "http://localhost:8000/discovery/results"
+_ASSET_MODELS: Iterable[type[HostAsset]] = (
+    LinuxAsset,
+    WindowsAsset,
+    SparcAsset,
+    HostAsset,
+)
 
-@celery_app.task(name="src.worker.tasks.discovery.discovery_task", max_retries=3, bind=True)
-def discovery_task(self, host, user):
+
+def _looks_like_raw_facts(payload: Dict[str, Any]) -> bool:
+    """Heuristic to decide whether the payload represents raw Ansible facts."""
+    return any(key.startswith("ansible_") for key in payload)
+
+
+def _coerce_asset_model(payload: Dict[str, Any]) -> HostAsset:
     """
-    Celery task for discovering host facts using Ansible.
-    
-    Args:
-        host: Target host IP or hostname
-        user: SSH user for connection
-        
-    Returns:
-        Dictionary containing discovered asset information
+    Best-effort conversion of discovery payloads into a HostAsset (or subtype).
+
+    The Ansible plugin may return raw fact dictionaries or serialised asset
+    models. This helper normalises the data so downstream code consistently
+    receives a Pydantic model instance.
     """
+    from src.core.models.fact_parser import parse_facts_to_asset
+    from src.core.models.asset_model import HostAsset, LinuxAsset, WindowsAsset, SparcAsset
+    normalised = dict(payload)
+    normalised.setdefault("type", "host")
+    normalised.setdefault("source", "ansible")
+    normalised.setdefault("metadata", {})
+
+    if _looks_like_raw_facts(normalised):
+        return parse_facts_to_asset(normalised)
+
+    for model_cls in _ASSET_MODELS:
+        try:
+            return model_cls.model_validate(normalised)  # type: ignore[arg-type]
+        except ValidationError:
+            continue
+
+    hostname = normalised.get("hostname") or normalised.get("name") or "unknown"
+
+    return HostAsset(
+        name=normalised.get("name", hostname),
+        type=normalised.get("type", "host"),
+        source=normalised.get("source", "ansible"),
+        metadata=normalised.get("metadata", {}),
+        hostname=hostname,
+        ip_address=normalised.get("ip_address"),
+        os=normalised.get("os"),
+        cpu_cores=normalised.get("cpu_cores"),
+        memory_mb=normalised.get("memory_mb"),
+        tags=normalised.get("tags", []),
+    )
+
+# Task for getting data from Ansible
+
+@celery_app.task(bind=True, max_retries=3)
+def discovery_task(self, host: str, user: str):
+    """
+    Task to discover a single host.
+    """
+    from src.core.plugins.plugin_loader import get_plugin
+    from src.core.models.asset_model import HostAsset
     try:
         logger.info(f"Starting discovery task for host: {host}")
-        
-        self.update_state(
-            state='PROGRESS',
-            meta={'current': 0, 'total': 1, 'status': f'Discovering {host}...'}
-        )
-        
-        ansible_plugin = AnsiblePlugin()
-        asset = ansible_plugin.discover(host, user)
-        
-        self.update_state(
-            state='PROGRESS',
-            meta={'current': 1, 'total': 1, 'status': f'Successfully discovered {host}'}
-        )
-        
-        logger.info(f"Successfully discovered {host}: {asset.get('hostname', 'unknown')}")
-        
-        return {
-            "status": "success",
-            "host": host,
-            "asset": asset,
-            "discovery_method": "ansible",
-            "facts_count": 1
-        }
-    
-    except Exception as exc:
-        logger.error(f"Discovery task failed for {host}: {exc}")
-        
-        self.update_state(
-            state='FAILURE',
-            meta={'current': 1, 'total': 1, 'status': f'Discovery failed for {host}: {str(exc)}'}
-        )
-        
-        raise self.retry(exc=exc, countdown=60)
+        plugin_instance = get_plugin("ansible")
+        result = plugin_instance.discover(host, user)
+        if result:
+            asset = HostAsset(**result)
+            # Persistence layer is not wired here; returning the parsed asset payload.
+            logger.info(f"Discovered asset prepared: {asset.hostname}")
+        return result
+    except Exception as e:
+        logger.error(f"Discovery task failed for {host}: {e}")
+        raise self.retry(exc=e, countdown=60)
 
 
-@celery_app.task(name="src.worker.tasks.discovery.batch_discovery_task", max_retries=3, bind=True)
+@celery_app.task(name="worker.tasks.discovery.batch_discovery_task", bind=True, max_retries=3)
 def batch_discovery_task(self, hosts, user):
     """
     Celery task for discovering multiple hosts using Ansible.
@@ -76,6 +101,9 @@ def batch_discovery_task(self, hosts, user):
     Returns:
         Dictionary containing discovered assets information
     """
+    from src.core.plugins.ansible_plugin import AnsiblePlugin
+    from src.core.models.asset_model import HostAsset
+    from src.core.services.jira_service import JiraService
     try:
         logger.info(f"Starting batch discovery task for {len(hosts)} hosts")
         
@@ -91,11 +119,13 @@ def batch_discovery_task(self, hosts, user):
         
         # Parse facts into asset models
         assets = []
+        asset_models = []
         for host, facts in facts_dict.items():
             try:
-                asset = parse_facts_to_asset(facts)
+                asset = _coerce_asset_model(facts)
+                asset_models.append(asset)
                 assets.append(asset.dict())
-                
+
                 # Update progress
                 self.update_state(
                     state='PROGRESS',
@@ -111,6 +141,8 @@ def batch_discovery_task(self, hosts, user):
                 # Create fallback asset
                 fallback_asset = HostAsset(
                     name=host,
+                    type="host",
+                    source="ansible",
                     hostname=host,
                     ip_address=host,
                     os="Unknown",
@@ -119,6 +151,25 @@ def batch_discovery_task(self, hosts, user):
                 assets.append(fallback_asset.dict())
         
         logger.info(f"Successfully completed batch discovery for {len(hosts)} hosts")
+
+        jira_summary: Optional[Dict[str, Any]] = None
+
+        try:
+            if asset_models:
+                jira_service = JiraService()
+                jira_summary = jira_service.sync_assets_from_models(asset_models)
+                logger.info(
+                    "Jira sync summary - created: %s, updated: %s, errors: %s",
+                    jira_summary.get("created"),
+                    jira_summary.get("updated"),
+                    jira_summary.get("errors"),
+                )
+        except ValueError as config_error:
+            logger.info("Skipping Jira sync: %s", config_error)
+            jira_summary = {"skipped": True, "detail": str(config_error)}
+        except Exception as jira_error:
+            logger.error("Failed to sync assets with Jira: %s", jira_error, exc_info=True)
+            jira_summary = {"error": str(jira_error)}
         
         # Return results
         return {
@@ -126,7 +177,8 @@ def batch_discovery_task(self, hosts, user):
             "hosts": hosts,
             "assets": assets,
             "discovery_method": "ansible_batch",
-            "total_discovered": len(assets)
+            "total_discovered": len(assets),
+            "jira_sync": jira_summary,
         }
     
     except Exception as exc:

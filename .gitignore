@@ -1,67 +1,16 @@
-# Python bytecode and cache
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Compiled extensions
-*.so
-
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
-venv.bak/
-
-# OS junk
-.DS_Store
-
-# Editor/IDE
-.vscode/
-.idea/
-
-# Tests and coverage
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.tox/
-.coverage
-.coverage.*
-htmlcov/
-
-# Build artifacts
-build/
-dist/
-*.egg-info/
-
-# Logs
-*.log
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# Ansible artifacts
-ansible/fact_cache/
-
-# Project outputs
-output/
-queue/
-
-# Environment files
-.env
-.env.*
-
-# Celery
-celerybeat-schedule*
-celerybeat.pid
-=======
-# Default ignored files
-/shelf/
-/workspace.xml
-.venv/
-.idea/
+# Python
 __pycache__/
 *.pyc
-.env
+.venv/
+venv/
+*.env
+
+# IDE folders
+.idea/
+.vscode/
+
+# OS files
 .DS_Store
+
+# Project cache
+ansible/fact_cache/
