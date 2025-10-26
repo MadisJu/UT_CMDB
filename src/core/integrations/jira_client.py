@@ -300,25 +300,35 @@ class JiraClient:
         name_field_id = "150"
         hostname_field_id = "178" 
         ip_address_field_id = "177"
-        cpu_model = "174"
-        cpu_cores_field_id = "181"
+        architecture_field_id = "179"  # Architecture field
+        processor_model_field_id = "180"  # Processor Model field
+        physical_cpus_field_id = "181"  # Physical CPUs field
+        virtual_cpus_field_id = "182"  # Virtual CPUs field
+        os_field_id = "187"  # OS field
         memory_field_id = "175"
+        disk_usage_field_id = "176"  # Disk Usage field
+        cpu_temperature_field_id = "173"  # CPU Temperature field
         # -----------------------
 
         attributes = [
             {"objectTypeAttributeId": name_field_id, "objectAttributeValues": [{"value": asset.hostname}]},
             {"objectTypeAttributeId": hostname_field_id, "objectAttributeValues": [{"value": asset.hostname}]},
             {"objectTypeAttributeId": ip_address_field_id, "objectAttributeValues": [{"value": asset.ip_address}]},
-            {"objectTypeAttributeId": cpu_model, "objectAttributeValues": [{"value": asset.os}]},
-            {"objectTypeAttributeId": cpu_cores_field_id, "objectAttributeValues": [{"value": str(asset.cpu_cores)}]},
-            {"objectTypeAttributeId": memory_field_id, "objectAttributeValues": [{"value": str(asset.memory_mb)}]},
+            {"objectTypeAttributeId": architecture_field_id, "objectAttributeValues": [{"value": asset.architecture}]},
+            {"objectTypeAttributeId": processor_model_field_id, "objectAttributeValues": [{"value": asset.processor_model}]},
+            {"objectTypeAttributeId": physical_cpus_field_id, "objectAttributeValues": [{"value": str(asset.physical_cpus)}]},
+            {"objectTypeAttributeId": virtual_cpus_field_id, "objectAttributeValues": [{"value": str(asset.virtual_cpus)}]},
+            {"objectTypeAttributeId": os_field_id, "objectAttributeValues": [{"value": asset.os}]},
+            {"objectTypeAttributeId": memory_field_id, "objectAttributeValues": [{"value": str(asset.memory_gb)}]},
+            {"objectTypeAttributeId": disk_usage_field_id, "objectAttributeValues": [{"value": str(asset.disk_usage)}]},
+            {"objectTypeAttributeId": cpu_temperature_field_id, "objectAttributeValues": [{"value": str(asset.cpu_temperature)}]},
         ]
         
-        # The objectTypeId for "Servers" or a similar object type in your Jira schema.
+        # The objectTypeId for "Hardware Assets" or a similar object type in your Jira schema.
         # You MUST replace this placeholder ID.
-        server_object_type_id = "25" 
+        hardware_object_type_id = "25" 
 
         return {
-            "objectTypeId": server_object_type_id,
+            "objectTypeId": hardware_object_type_id,
             "attributes": attributes
         }
