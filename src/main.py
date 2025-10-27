@@ -18,7 +18,7 @@ processes = []
 
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully."""
-    print("\n🛑 Shutting down CMDB components...")
+    print("\nShutting down CMDB components...")
     for process in processes:
         if process.poll() is None:
             process.terminate()
@@ -55,7 +55,7 @@ def find_available_port(host, start_port):
 
 def start_celery_worker():
     """Start Celery worker in a subprocess."""
-    print("⚙️ Starting Celery worker...")
+    print("Starting Celery worker...")
     worker_process = subprocess.Popen([
         sys.executable, "-m", "celery", 
         "-A", "src.worker.main", 
@@ -68,7 +68,7 @@ def start_celery_worker():
 
 def start_celery_beat():
     """Start Celery beat scheduler in a subprocess."""
-    print("⏰ Starting Celery beat scheduler...")
+    print("Starting Celery beat scheduler...")
     beat_process = subprocess.Popen([
         sys.executable, "-m", "celery", 
         "-A", "src.scheduler.celery_app", 
@@ -80,7 +80,7 @@ def start_celery_beat():
 
 def start_api_server(host, port, debug):
     """Start FastAPI server."""
-    print(f"🌐 Starting CMDB API server on {host}:{port}")
+    print(f"Starting CMDB API server on {host}:{port}")
     print(f"Debug mode: {debug}")
     print(f"Swagger UI available at: http://{host}:{port}/docs")
     print(f"ReDoc available at: http://{host}:{port}/redoc")
@@ -95,9 +95,9 @@ def start_api_server(host, port, debug):
         )
     except OSError as e:
         if "address already in use" in str(e):
-            print(f"⚠️ Port {port} is already in use. Please stop the existing process or change the port in .env file.")
+            print(f" Port {port} is already in use. Please stop the existing process or change the port in .env file.")
         else:
-            print(f"❌ Error starting API server: {e}")
+            print(f"Error starting API server: {e}")
         raise
 
 if __name__ == "__main__":
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     port = settings.cmdb_port
     debug = settings.cmdb_debug
     
-    print(f"📋 Configuration:")
+    print(f"   Configuration:")
     print(f"   Environment: {settings.env}")
     print(f"   Host: {host}")
     print(f"   Port: {port}")
@@ -128,15 +128,15 @@ if __name__ == "__main__":
         beat_process = start_celery_beat()
         time.sleep(2)  # Give beat time to start
         
-        print("✅ All background services started successfully!")
+        print(" All background services started successfully!")
         print("=" * 50)
         
         # Start API server (this will block)
         start_api_server(host, port, debug)
         
     except KeyboardInterrupt:
-        print("\n🛑 Received interrupt signal")
+        print("\n Received interrupt signal")
     except Exception as e:
-        print(f"❌ Error starting CMDB: {e}")
+        print(f" Error starting CMDB: {e}")
     finally:
         signal_handler(None, None)

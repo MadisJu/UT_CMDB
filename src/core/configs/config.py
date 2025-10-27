@@ -18,10 +18,15 @@ class Settings(BaseSettings):
 
     # --- Jira ---
     jira_url: Optional[str] = Field(None, description="Jira base URL, e.g. https://yourcompany.atlassian.net")
-    jira_api_token: Optional[str] = Field(None, description="Jira API token", alias="JIRA_API_TOKEN")
-    jira_user_email: Optional[str] = Field(None, description="Email of API user", alias="JIRA_API_USER")
-    jira_asset_workspace_id: Optional[str] = Field(None, description="ID of the Jira Assets workspace", alias="JIRA_WORKSPACE_ID")
-    jira_cloud_id: Optional[str] = Field(None, description="Jira Cloud ID", alias="JIRA_CLOUD_ID")
+    jira_api_token: Optional[str] = Field(None, description="Jira API token")
+    jira_user_email: Optional[str] = Field(None, description="Email of API user")
+    jira_asset_workspace_id: Optional[str] = Field(None, description="ID of the Jira Assets workspace")
+    jira_cloud_id: Optional[str] = Field(None, description="Jira Cloud ID")
+
+    # --- CMDB ---
+    cmdb_host: Optional[str] = Field(None, description="CMDB host IP address")
+    cmdb_user: Optional[str] = Field(None, description="CMDB user")
+    cmdb_interval_seconds: Optional[int] = Field(None, description="CMDB discovery interval in seconds")
 
     # --- Ansible ---
     ansible_inventory_path: str = Field("inventories/default_inventory.ini")
@@ -58,6 +63,7 @@ class Settings(BaseSettings):
         env_file = Path(__file__).parent / ".env"  # load from .env file if present
         env_file_encoding = 'utf-8'
         case_sensitive = False
+        extra = "allow"  # Allow extra fields to prevent validation errors
 
     def get_address_book(self) -> list[dict]:
         """Load hosts from the address book JSON."""

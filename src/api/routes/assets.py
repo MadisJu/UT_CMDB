@@ -9,7 +9,6 @@ router = APIRouter(
     tags=["Assets"]
 )
 
-# Dependency to get Jira service
 def get_jira_service():
     try:
         jira_client = JiraClient()
@@ -29,10 +28,8 @@ def get_jira_service():
 def get_all_assets(jira_service: JiraService = Depends(get_jira_service)):
     """Get all assets from Jira Asset Manager."""
     try:
-        # Get assets from Jira
         jira_assets = jira_service.get_all_assets()
         
-        # Convert Jira assets to our asset schema format
         assets = []
         for jira_asset in jira_assets:
             # Extract basic information from Jira asset

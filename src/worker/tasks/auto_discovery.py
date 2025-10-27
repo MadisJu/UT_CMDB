@@ -84,22 +84,19 @@ def auto_discovery_task(self):
                 # Discover the machine
                 facts = ansible_plugin.discover(host, user)
                 
-                # Facts is already a parsed asset, convert to dict if needed
-                if isinstance(facts, dict):
-                    asset_dict = facts
-                else:
-                    asset_dict = facts.dict()
+                # Parse facts into asset model
+                asset = parse_facts_to_asset(facts)
                 
                 # Add machine configuration metadata
-                asset_dict["metadata"].update({
+                asset.metadata.update({
                     "configured_type": machine.get("type"),
                     "description": machine.get("description"),
                     "discovery_method": "auto_discovery",
                     "source_config": "machine_inventory"
                 })
                 
-                discovered_assets.append(asset_dict)
-                logger.info(f"Successfully discovered {host}: {asset_dict.get('hostname', 'unknown')}")
+                discovered_assets.append(asset.dict())
+                logger.info(f"Successfully discovered {host}: {asset.hostname}")
                 
             except Exception as e:
                 logger.error(f"Failed to discover machine {machine.get('hostname', 'unknown')}: {e}")

@@ -1,8 +1,7 @@
 from src.core.configs.celery_config import celery_app
 
 # Import all task modules to register them
-from src.worker.tasks import discovery, sync_to_jira, auto_discovery
-
-# This ensures all tasks are registered with Celery
-__all__ = ['celery_app']
+from src.worker.tasks.discovery import discovery_task, batch_discovery_task
+from src.worker.tasks.sync_to_jira import sync_discovered_assets
+from src.worker.tasks.auto_discovery import auto_discovery_task, discovery_by_type_task
 

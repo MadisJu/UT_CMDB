@@ -84,4 +84,31 @@ celery_app.conf.beat_schedule = beat_schedule
 
 logger.info(f"Configured {len(beat_schedule)} scheduled tasks")
 
+# Add startup task to automatically trigger auto discovery and Jira sync
+@celery_app.task(name="src.scheduler.celery_app.startup_auto_discovery")
+def startup_auto_discovery():
+    """Startup task to automatically trigger auto discovery and Jira sync."""
+    try:
+        logger.info("Scheduler startup: Triggering initial auto discovery and Jira sync")
+        
+        # Import the auto discovery task
+        from src.worker.tasks.auto_discovery import auto_discovery_task
+        
+        # Queue the auto discovery task
+        result = auto_discovery_task.delay()
+        logger.info(f"Startup auto discovery queued with task ID: {result.id}")
+        
+        return {"status": "success", "message": "Startup auto discovery queued", "task_id": result.id}
+        
+    except Exception as e:
+        logger.error(f"Failed to queue startup auto discovery: {e}")
+        return {"status": "error", "message": str(e)}
+
+# Queue the startup task when the scheduler starts
+try:
+    startup_result = startup_auto_discovery.delay()
+    logger.info(f"Startup auto discovery task queued: {startup_result.id}")
+except Exception as e:
+    logger.error(f"Failed to queue startup task: {e}")
+
 
