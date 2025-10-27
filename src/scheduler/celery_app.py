@@ -62,20 +62,20 @@ beat_schedule = {}
 if host and user:
     # Legacy single-host discovery task
     beat_schedule["periodic-ansible-discovery"] = {
-        "task": "worker.tasks.discovery.discovery_task",
+        "task": "src.worker.tasks.discovery.discovery_task",
         "schedule": timedelta(seconds=interval_seconds),
         "args": [host, user],
     }
 
 # Auto discovery task for all configured machines
 beat_schedule["periodic-auto-discovery"] = {
-    "task": "worker.tasks.discovery.auto_discovery_task",
+    "task": "src.worker.tasks.auto_discovery.auto_discovery_task",
     "schedule": timedelta(seconds=interval_seconds),
 }
 
 # Linux machines discovery task
 beat_schedule["periodic-linux-discovery"] = {
-    "task": "worker.tasks.discovery.discovery_by_type_task",
+    "task": "src.worker.tasks.auto_discovery.discovery_by_type_task",
     "schedule": timedelta(seconds=interval_seconds * 2),  # Run every 2 intervals
     "args": ["linux"],
 }

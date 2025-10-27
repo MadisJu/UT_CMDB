@@ -29,6 +29,7 @@
     "timeout": 300,
     "retry_count": 3,
     "parallel_discovery": true,
-    "max_parallel_hosts": 5
+    "max_parallel_hosts": 5,
+    "interval_seconds": 30
   }
 }

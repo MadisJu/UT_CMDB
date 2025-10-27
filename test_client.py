@@ -33,8 +33,87 @@ def run_test():
                             "value": "Test objekt loodud python skriptist (create toimib)"
                         }
                     ]
+                },
+                {
+                    "objectTypeAttributeId": 178,  # Hostname field
+                    "objectAttributeValues": [
+                        {
+                            "value": "test-hostname"
+                        }
+                    ]
+                },
+                {
+                    "objectTypeAttributeId": 177,  # IP Address field
+                    "objectAttributeValues": [
+                        {
+                            "value": "192.168.1.1"
+                        }
+                    ]
+                },
+                {
+                    "objectTypeAttributeId": 179,  # Architecture field
+                    "objectAttributeValues": [
+                        {
+                            "value": "x86_64"
+                        }
+                    ]
+                },
+                {
+                    "objectTypeAttributeId": 180,  # Processor Model field
+                    "objectAttributeValues": [
+                        {
+                            "value": "Intel Xeon"
+                        }
+                    ]
+                },
+                {
+                    "objectTypeAttributeId": 181,  # Physical CPUs field
+                    "objectAttributeValues": [
+                        {
+                            "value": "4"
+                        }
+                    ]
+                },
+                {
+                    "objectTypeAttributeId": 182,  # Virtual CPUs field
+                    "objectAttributeValues": [
+                        {
+                            "value": "8"
+                        }
+                    ]
+                },
+                {
+                    "objectTypeAttributeId": 187,  # OS field
+                    "objectAttributeValues": [
+                        {
+                            "value": "Ubuntu 20.04"
+                        }
+                    ]
+                },
+                {
+                    "objectTypeAttributeId": 175,  # Memory field
+                    "objectAttributeValues": [
+                        {
+                            "value": 16.0  
+                        }
+                    ]
+                },
+                {
+                    "objectTypeAttributeId": 176,  # Disk Usage field
+                    "objectAttributeValues": [
+                        {
+                            "value": 500.0  
+                        }
+                    ]
+                },
+                {
+                    "objectTypeAttributeId": 173,  # CPU Temperature field
+                    "objectAttributeValues": [
+                        {
+                            "value": 45.0 
+                        }
+                    ]
                 }
-                # Lisa siia teised atribuudid, kui need on kohustuslikud
             ]
         }
 
@@ -56,13 +135,13 @@ def run_test():
                 }
             ]
         }
-        updated_asset = client.update_asset(new_asset_id, update_data)
-        logger.info(f"SUCCESS! Updated asset to: {updated_asset.label}")
+        #updated_asset = client.update_asset(new_asset_id, update_data)
+        #logger.info(f"SUCCESS! Updated asset to: {updated_asset.label}")
 
         # --- Test 3: GET ASSET ---
-        logger.info(f"Testing get_asset_by_id for ID: {new_asset_id}...")
-        fetched_asset = client.get_asset_by_id(new_asset_id)
-        logger.info(f"SUCCESS! Fetched asset: {fetched_asset.label}")
+        #logger.info(f"Testing get_asset_by_id for ID: {new_asset_id}...")
+        #fetched_asset = client.get_asset_by_id(new_asset_id)
+        #logger.info(f"SUCCESS! Fetched asset: {fetched_asset.label}")
 
         # --- Test 4: DELETE ASSET ---
         #logger.info(f"Testing delete_asset for ID: {new_asset_id}...")

@@ -128,7 +128,6 @@ class JiraService:
             Sync results summary
         """
         try:
-            # Convert asset models to Jira format
             jira_assets = []
             for asset in assets:
                 if isinstance(asset, LinuxAsset):

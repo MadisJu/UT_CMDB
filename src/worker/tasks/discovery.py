@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 from pydantic import ValidationError
 
-# Add the project root to Python path
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -75,16 +74,17 @@ def discovery_task(self, host: str, user: str):
     Task to discover a single host.
     """
     from src.core.plugins.plugin_loader import get_plugin
-    from src.core.models.asset_model import HostAsset
+    from src.core.models.fact_parser import parse_facts_to_asset
     try:
         logger.info(f"Starting discovery task for host: {host}")
         plugin_instance = get_plugin("ansible")
         result = plugin_instance.discover(host, user)
         if result:
-            asset = HostAsset(**result)
-            # Persistence layer is not wired here; returning the parsed asset payload.
+            asset = parse_facts_to_asset(result)
             logger.info(f"Discovered asset prepared: {asset.hostname}")
-        return result
+            return asset.dict()
+        logger.warning(f"Discovery returned no data for {host}")
+        return None
     except Exception as e:
         logger.error(f"Discovery task failed for {host}: {e}")
         raise self.retry(exc=e, countdown=60)
@@ -126,20 +126,8 @@ def batch_discovery_task(self, hosts, user):
                 asset = _coerce_asset_model(facts)
                 asset_models.append(asset)
                 assets.append(asset.dict())
-
-                # Update progress
-                self.update_state(
-                    state='PROGRESS',
-                    meta={
-                        'current': len(assets), 
-                        'total': len(hosts), 
-                        'status': f'Discovered {len(assets)}/{len(hosts)} hosts'
-                    }
-                )
-                
-            except Exception as e:
-                logger.error(f"Failed to parse facts for {host}: {e}")
-                # Create fallback asset
+            except Exception as parse_error:
+                logger.error("Failed to parse facts for %s: %s", host, parse_error)
                 fallback_asset = HostAsset(
                     name=host,
                     type="host",
@@ -147,9 +135,21 @@ def batch_discovery_task(self, hosts, user):
                     hostname=host,
                     ip_address=host,
                     os="Unknown",
-                    metadata={"source": "ansible_fallback", "error": str(e)}
+                    metadata={"source": "ansible_fallback", "error": str(parse_error)}
                 )
                 assets.append(fallback_asset.dict())
+
+            # Update progress regardless of parse outcome
+            self.update_state(
+                state='PROGRESS',
+                meta={
+                    'current': len(assets), 
+                    'total': len(hosts), 
+                    'status': f'Discovered {len(assets)}/{len(hosts)} hosts'
+                }
+            )
+                
+        
         
         logger.info(f"Successfully completed batch discovery for {len(hosts)} hosts")
 

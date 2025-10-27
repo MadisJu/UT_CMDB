@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     ansible_playbook_path: str = Field("playbooks/discovery.yml")
     ansible_timeout: int = 300
 
-    address_book_path: Path = Field(default=Path(__file__).parent.parent / "config" / "config.json",
+    address_book_path: Path = Field(default=Path(__file__).parent / "config.json",
                                     description="Config file path")
 
     # --- Scheduler ---
@@ -53,8 +53,17 @@ class Settings(BaseSettings):
     enable_jira_sync: bool = True
     enable_ansible_discovery: bool = True
 
+    # --- CMDB Specific ---
+    cmdb_host: str = Field("0.0.0.0", description="CMDB API host", alias="CMDB_HOST")
+    cmdb_port: int = Field(8000, description="CMDB API port", alias="CMDB_PORT")
+    cmdb_user: str = Field("root", description="Default user for discovery", alias="CMDB_USER")
+    cmdb_interval_seconds: int = Field(3600, description="Discovery interval in seconds", alias="CMDB_INTERVAL_SECONDS")
+    cmdb_debug: bool = Field(False, description="Debug mode", alias="CMDB_DEBUG")
+
     class Config:
-        env_file = ".env"  # load from .env file if present
+        env_file = Path(__file__).parent / ".env"  # load from .env file if present
+        env_file_encoding = 'utf-8'
+        case_sensitive = False
 
     def get_address_book(self) -> list[dict]:
         """Load hosts from the address book JSON."""

@@ -19,7 +19,7 @@ from src.core.models.asset_model import HostAsset
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(name="worker.tasks.discovery.auto_discovery_task", bind=True, max_retries=3)
+@celery_app.task(name="src.worker.tasks.auto_discovery.auto_discovery_task", bind=True, max_retries=3)
 def auto_discovery_task(self):
     """
     Celery task for automatic discovery of all configured machines.
@@ -84,19 +84,24 @@ def auto_discovery_task(self):
                 # Discover the machine
                 facts = ansible_plugin.discover(host, user)
                 
-                # Parse facts into asset model
-                asset = parse_facts_to_asset(facts)
+                # Facts is already a parsed asset, convert to dict if needed
+                if isinstance(facts, dict):
+                    asset_dict = facts
+                else:
+                    asset_dict = facts.dict()
                 
                 # Add machine configuration metadata
-                asset.metadata.update({
+                if "metadata" not in asset_dict:
+                    asset_dict["metadata"] = {}
+                asset_dict["metadata"].update({
                     "configured_type": machine.get("type"),
                     "description": machine.get("description"),
                     "discovery_method": "auto_discovery",
                     "source_config": "machine_inventory"
                 })
                 
-                discovered_assets.append(asset.dict())
-                logger.info(f"Successfully discovered {host}: {asset.hostname}")
+                discovered_assets.append(asset_dict)
+                logger.info(f"Successfully discovered {host}: {asset_dict.get('hostname', 'unknown')}")
                 
             except Exception as e:
                 logger.error(f"Failed to discover machine {machine.get('hostname', 'unknown')}: {e}")
@@ -104,9 +109,12 @@ def auto_discovery_task(self):
                 # Create fallback asset
                 fallback_asset = HostAsset(
                     name=machine.get("hostname", "unknown"),
+                    type=machine.get("type", "unknown"),
                     hostname=machine.get("hostname", "unknown"),
                     ip_address=machine.get("ip_address", "unknown"),
                     os="Unknown",
+                    cpu_cores=0,
+                    memory_mb=0,
                     metadata={
                         "source": "auto_discovery_fallback",
                         "error": str(e),
@@ -156,7 +164,7 @@ def auto_discovery_task(self):
         raise self.retry(exc=exc, countdown=60)
 
 
-@celery_app.task(name="worker.tasks.discovery.discovery_by_type_task", max_retries=3, bind=True)
+@celery_app.task(name="src.worker.tasks.auto_discovery.discovery_by_type_task", max_retries=3, bind=True)
 def discovery_by_type_task(self, machine_type: str):
     """
     Celery task for discovering machines of a specific type.
@@ -229,6 +237,8 @@ def discovery_by_type_task(self, machine_type: str):
                 asset = parse_facts_to_asset(facts)
                 
                 # Add machine configuration metadata
+                if asset.metadata is None:
+                    asset.metadata = {}
                 asset.metadata.update({
                     "configured_type": machine.get("type"),
                     "description": machine.get("description"),
@@ -245,9 +255,12 @@ def discovery_by_type_task(self, machine_type: str):
                 # Create fallback asset
                 fallback_asset = HostAsset(
                     name=machine.get("hostname", "unknown"),
+                    type=machine.get("type", "unknown"),
                     hostname=machine.get("hostname", "unknown"),
                     ip_address=machine.get("ip_address", "unknown"),
                     os="Unknown",
+                    cpu_cores=0,
+                    memory_mb=0,
                     metadata={
                         "source": "type_discovery_fallback",
                         "error": str(e),
