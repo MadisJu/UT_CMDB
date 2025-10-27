@@ -76,7 +76,6 @@ def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
         return LinuxAsset(
             type="linux",
             name=facts.get("ansible_hostname", "unknown"),
-            type="linux",
             hostname=facts.get("ansible_hostname", "unknown"),
             ip_address=ip_address,
             os=facts.get("ansible_distribution", "Linux"),
@@ -93,7 +92,6 @@ def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
         return LinuxAsset(
             type="linux",
             name=facts.get("ansible_hostname", "unknown"),
-            type="linux",
             hostname=facts.get("ansible_hostname", "unknown"),
             ip_address=facts.get("ansible_default_ipv4", {}).get("address") if isinstance(facts.get("ansible_default_ipv4"), dict) else None,
             os="Linux",
@@ -132,7 +130,6 @@ def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
         return WindowsAsset(
             type="windows",
             name=facts.get("ansible_hostname", "unknown"),
-            type="windows",
             hostname=facts.get("ansible_hostname", "unknown"),
             ip_address=ip_address,
             os="Windows",
@@ -148,7 +145,6 @@ def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
         return WindowsAsset(
             type="windows",
             name=facts.get("ansible_hostname", "unknown"),
-            type="windows",
             hostname=facts.get("ansible_hostname", "unknown"),
             ip_address=facts.get("ansible_ip_addresses", [None])[0] if isinstance(facts.get("ansible_ip_addresses"), list) else None,
             os="Windows",
@@ -181,7 +177,6 @@ def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
         return SparcAsset(
             type="sparc",
             name=facts.get("ansible_hostname", "unknown"),
-            type="sparc",
             hostname=facts.get("ansible_hostname", "unknown"),
             ip_address=ip_address,
             os="Solaris",
@@ -197,7 +192,6 @@ def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
         return SparcAsset(
             type="sparc",
             name=facts.get("ansible_hostname", "unknown"),
-            type="sparc",
             hostname=facts.get("ansible_hostname", "unknown"),
             ip_address=facts.get("ansible_default_ipv4", {}).get("address") if isinstance(facts.get("ansible_default_ipv4"), dict) else None,
             os="Solaris",

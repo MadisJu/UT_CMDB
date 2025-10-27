@@ -16,7 +16,6 @@ ansible-runner>=2.3.0
 
 # Celery for background tasks
 celery>=5.3.0
-redis>=5.0.0
 
 # Logging and utilities
 python-json-logger>=2.0.0

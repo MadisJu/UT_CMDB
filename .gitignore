@@ -14,3 +14,11 @@ venv/
 
 # Project cache
 ansible/fact_cache/
+celery_results.db
+celery_results.db
+celerybeat-schedule
+cmdb.log
+.gitignore
+celery_results.db
+celery_results.db
+src/celery_broker.db

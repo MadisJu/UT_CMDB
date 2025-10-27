@@ -19,6 +19,12 @@ def run_test():
         client = JiraClient(settings=settings)
         logger.info("JiraClient initialized.")
 
+        # --- List attributes for object type ID 13 ---
+        logger.info("Listing attributes for object type ID 13...")
+        client.list_object_attributes("13")
+        
+        return
+
         # --- Test 1: CREATE ASSET ---
         logger.info("Testing create_asset...")
 

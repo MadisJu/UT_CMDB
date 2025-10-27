@@ -80,10 +80,11 @@ def discovery_task(self, host: str, user: str):
         plugin_instance = get_plugin("ansible")
         result = plugin_instance.discover(host, user)
         if result:
-            asset = HostAsset(**result)
+            # Use the _coerce_asset_model helper to properly parse facts
+            asset = _coerce_asset_model(result)
             # Persistence layer is not wired here; returning the parsed asset payload.
             logger.info(f"Discovered asset prepared: {asset.hostname}")
-        return result
+        return asset.dict() if asset else result
     except Exception as e:
         logger.error(f"Discovery task failed for {host}: {e}")
         raise self.retry(exc=e, countdown=60)
