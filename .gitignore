@@ -22,3 +22,5 @@ cmdb.log
 celery_results.db
 celery_results.db
 src/celery_broker.db
+celery_broker.db
+celery_results.db
