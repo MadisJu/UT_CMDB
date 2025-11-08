@@ -136,6 +136,7 @@ def start_type_discovery_job(
 @router.post("/immediate", status_code=status.HTTP_200_OK)
 def discover_immediate(
     target_host: str,
+    user: Optional[str] = None,
     ansible_plugin: AnsiblePlugin = Depends(get_ansible_plugin)
 ):
     """
@@ -145,7 +146,7 @@ def discover_immediate(
     """
     try:
         # Use Ansible plugin to discover the host
-        facts = ansible_plugin.discover(target_host)
+        facts = ansible_plugin.discover(target_host, user)
         
         # Parse facts into appropriate asset model
         if facts.get("os", "").lower() in ["linux", "ubuntu", "centos", "rhel", "debian"]:
