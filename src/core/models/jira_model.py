@@ -39,6 +39,12 @@ def map_linux_to_jira(asset):
     cpu_cores_field_id = "189"       # CPU Cores (Physical cores)
     cpu_model_field_id = "190"       # CPU Model
     memory_field_id = "191"          # Memory
+    processor_count_field_id = "224"   # Processor Count
+    swap_total_field_id = "225"      # Swap total mb
+    disk_total_field_id = "226"      # HDD total mb (assuming this ID)
+    os_version_number_field_id = "227" # OS version number
+    mac_address_field_id = "228"     # Mac adr
+    ipv6_address_field_id = "229"    # Ipv6
 
     attributes = [
         {"objectTypeAttributeId": name_field_id, "objectAttributeValues": [{"value": asset.hostname}]},
@@ -72,6 +78,25 @@ def map_linux_to_jira(asset):
     if hasattr(asset, 'owner_group') and asset.owner_group:
         attributes.append({"objectTypeAttributeId": owner_group_field_id, "objectAttributeValues": [{"value": asset.owner_group}]})
     
+    # Newly added attributes
+    if hasattr(asset, 'processor_count') and asset.processor_count:
+        attributes.append({"objectTypeAttributeId": processor_count_field_id, "objectAttributeValues": [{"value": str(asset.processor_count)}]})
+        
+    if hasattr(asset, 'swap_total_mb') and asset.swap_total_mb:
+        attributes.append({"objectTypeAttributeId": swap_total_field_id, "objectAttributeValues": [{"value": f"{asset.swap_total_mb} MB"}]})
+
+    if hasattr(asset, 'disk_total_gb') and asset.disk_total_gb:
+        attributes.append({"objectTypeAttributeId": disk_total_field_id, "objectAttributeValues": [{"value": f"{asset.disk_total_gb} GB"}]})
+
+    if hasattr(asset, 'os_version') and asset.os_version:
+        attributes.append({"objectTypeAttributeId": os_version_number_field_id, "objectAttributeValues": [{"value": asset.os_version}]})
+
+    if hasattr(asset, 'mac_address') and asset.mac_address:
+        attributes.append({"objectTypeAttributeId": mac_address_field_id, "objectAttributeValues": [{"value": asset.mac_address}]})
+
+    if hasattr(asset, 'ipv6_address') and asset.ipv6_address:
+        attributes.append({"objectTypeAttributeId": ipv6_address_field_id, "objectAttributeValues": [{"value": asset.ipv6_address}]})
+
     attributes.append({"objectTypeAttributeId": asset_status_field_id, "objectAttributeValues": [{"value": "In Use"}]})
     attributes.append({"objectTypeAttributeId": operational_status_field_id, "objectAttributeValues": [{"value": "Active"}]})
     attributes.append({"objectTypeAttributeId": status_field_id, "objectAttributeValues": [{"value": "Active"}]})
