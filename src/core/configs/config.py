@@ -32,7 +32,8 @@ class Settings(BaseSettings):
     ansible_inventory_path: str = Field("inventories/default_inventory.ini")
     ansible_playbook_path: str = Field("playbooks/discovery.yml")
     ansible_timeout: int = 300
-
+    ansible_user: str = Field("root", description="Default SSH user for Ansible discovery")
+    
     address_book_path: Path = Field(default=Path(__file__).parent / "config.json",
                                     description="Config file path")
 
@@ -76,6 +77,24 @@ class Settings(BaseSettings):
 
         return data.get("all", [])
 
+    def get_discovery_settings(self) -> dict[str, any]:
+        """Return discovery_settings dict from config.json (or empty dict)."""
+        data = self._load_address_book_json()
+        return data.get("discovery_settings", {})
+
+    @property
+    def default_discovery_user(self) -> str:
+        """
+        Resolve default user for discovery: THIS NEEDS TO BE CORRECTED SOON
+        """
+        ds = self.get_discovery_settings()
+        if isinstance(ds, dict) and ds.get("default_user"):
+            return ds["default_user"]
+        if getattr(self, "ansible_user", None):
+            return self.ansible_user
+        if getattr(self, "cmdb_user", None):
+            return self.cmdb_user
+        return "root"
 
 # Create one global instance
 settings = Settings()

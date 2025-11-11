@@ -66,7 +66,8 @@ pipelining = True
         Discover a single host using Ansible and return raw facts.
         """
         try:
-            logger.info(f"Starting Ansible discovery for {target}")
+            user = user or getattr(settings, "ansible_user", "root")
+            logger.info(f"Starting Ansible discovery for {target} as user={user}")
             
             if not self.ansible_available:
                 logger.warning(f"Ansible not available, using fallback for {target}")
@@ -143,7 +144,7 @@ pipelining = True
                             # Check if the expected key exists and return the whole object
                             if 'ansible_facts' in facts:
                                 facts['ansible_facts']['discovery_status'] = "success"
-                                return facts['ansible_facts'] # Return the inner ansible_facts dictionary
+                                return facts['ansible_facts']
                         except json.JSONDecodeError as e:
                             logger.error(f"JSON decode error in ansible output for {target}: {e}")
                             continue
