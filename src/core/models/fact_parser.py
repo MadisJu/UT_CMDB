@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_total_disk_gb(facts: Dict[str, Any]) -> float:
-    """Calculate total disk size from Ansible facts, focusing on whole physical disks."""
+
     total_bytes = 0
     try:
         if "ansible_devices" in facts and isinstance(facts["ansible_devices"], dict):
@@ -86,26 +86,15 @@ def _get_processor_type(processor_list: list) -> str:
 
 
 def parse_ansible_facts(facts: Dict[str, Any]) -> HostAsset:
-    """
-    Parse Ansible facts into a generic HostAsset.
-    
-    Args:
-        facts: Dictionary of Ansible facts
-        
-    Returns:
-        HostAsset instance
-    """
     try:
         processor_list = facts.get("ansible_processor", [])
         processor_type = _get_processor_type(processor_list)
         
-        # Safely get network info
         net_info = facts.get("ansible_default_ipv4", {})
         if not isinstance(net_info, dict):
             net_info = {}
 
         return HostAsset(
-            name=facts.get("ansible_hostname", "unknown"),
             type="host",
             hostname=facts.get("ansible_hostname", "unknown"),
             ip_address=net_info.get("address", "0.0.0.0"),
@@ -125,9 +114,7 @@ def parse_ansible_facts(facts: Dict[str, Any]) -> HostAsset:
         )
     except Exception as e:
         logger.error(f"Error parsing Ansible facts: {e}")
-        # Return minimal asset on error
         return HostAsset(
-            name=facts.get("ansible_hostname", "unknown_error"),
             type="host",
             hostname=facts.get("ansible_hostname", "unknown_error"),
             ip_address=facts.get("ansible_default_ipv4", {}).get("address", "0.0.0.0"),
@@ -139,26 +126,15 @@ def parse_ansible_facts(facts: Dict[str, Any]) -> HostAsset:
 
 
 def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
-    """
-    Parse Ansible facts into a LinuxAsset.
-    
-    Args:
-        facts: Dictionary of Ansible facts
-        
-    Returns:
-        LinuxAsset instance
-    """
     try:
         processor_list = facts.get("ansible_processor", [])
         processor_type = _get_processor_type(processor_list)
         
-        # Safely get network info
         net_info = facts.get("ansible_default_ipv4", {})
         if not isinstance(net_info, dict):
             net_info = {}
         
         return LinuxAsset(
-            name=facts.get("ansible_hostname", "unknown-linux"),
             hostname=facts.get("ansible_hostname", "unknown-linux"),
             ip_address=net_info.get("address", "0.0.0.0"),
             os=facts.get("ansible_distribution", "Linux"),
@@ -180,9 +156,7 @@ def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
         )
     except Exception as e:
         logger.error(f"Error parsing Linux facts: {e}")
-        # Return minimal Linux asset on error
         return LinuxAsset(
-            name=facts.get("ansible_hostname", "unknown_error"),
             hostname=facts.get("ansible_hostname", "unknown_error"),
             ip_address=facts.get("ansible_default_ipv4", {}).get("address", "0.0.0.0"),
             os="Linux",
@@ -193,26 +167,15 @@ def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
 
 
 def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
-    """
-    Parse Ansible facts into a WindowsAsset.
-    
-    Args:
-        facts: Dictionary of Ansible facts
-        
-    Returns:
-        WindowsAsset instance
-    """
     try:
         processor_list = facts.get("ansible_processor", [])
         processor_type = _get_processor_type(processor_list)
 
-        # Safely get network info
         net_info = facts.get("ansible_default_ipv4", {})
         if not isinstance(net_info, dict):
             net_info = {}
 
         return WindowsAsset(
-            name=facts.get("ansible_hostname", "unknown-windows"),
             hostname=facts.get("ansible_hostname", "unknown-windows"),
             ip_address=net_info.get("address", "0.0.0.0"),
             os="Windows",
@@ -232,9 +195,7 @@ def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
         )
     except Exception as e:
         logger.error(f"Error parsing Windows facts: {e}")
-        # Return minimal Windows asset on error
         return WindowsAsset(
-            name=facts.get("ansible_hostname", "unknown_error"),
             hostname=facts.get("ansible_hostname", "unknown_error"),
             ip_address=facts.get("ansible_default_ipv4", {}).get("address", "0.0.0.0"),
             os="Windows",
@@ -245,26 +206,15 @@ def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
 
 
 def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
-    """
-    Parse Ansible facts into a SparcAsset.
-    
-    Args:
-        facts: Dictionary of Ansible facts
-        
-    Returns:
-        SparcAsset instance
-    """
     try:
         processor_list = facts.get("ansible_processor", [])
         processor_type = _get_processor_type(processor_list)
 
-        # Safely get network info
         net_info = facts.get("ansible_default_ipv4", {})
         if not isinstance(net_info, dict):
             net_info = {}
 
         return SparcAsset(
-            name=facts.get("ansible_hostname", "unknown-sparc"),
             hostname=facts.get("ansible_hostname", "unknown-sparc"),
             ip_address=net_info.get("address", "0.0.0.0"),
             os="Solaris",
@@ -285,9 +235,7 @@ def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
         )
     except Exception as e:
         logger.error(f"Error parsing SPARC facts: {e}")
-        # Return minimal SPARC asset on error
         return SparcAsset(
-            name=facts.get("ansible_hostname", "unknown_error"),
             hostname=facts.get("ansible_hostname", "unknown_error"),
             ip_address=facts.get("ansible_default_ipv4", {}).get("address", "0.0.0.0"),
             os="Solaris",
@@ -298,15 +246,6 @@ def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
 
 
 def determine_asset_type(facts: Dict[str, Any]) -> str:
-    """
-    Determine the appropriate asset type based on facts.
-    
-    Args:
-        facts: Dictionary of Ansible facts
-        
-    Returns:
-        Asset type string ('linux', 'windows', 'sparc', 'host')
-    """
     os_family = facts.get("ansible_os_family", "").lower()
     
     if os_family == "windows":
@@ -320,15 +259,6 @@ def determine_asset_type(facts: Dict[str, Any]) -> str:
 
 
 def parse_facts_to_asset(facts: Dict[str, Any]) -> HostAsset:
-    """
-    Parse facts into the appropriate asset type automatically.
-    
-    Args:
-        facts: Dictionary of Ansible facts
-        
-    Returns:
-        Appropriate asset instance (LinuxAsset, WindowsAsset, SparcAsset, or HostAsset)
-    """
     asset_type = determine_asset_type(facts)
     
     if asset_type == "linux":

@@ -54,7 +54,6 @@ def _coerce_asset_model(payload: Dict[str, Any]) -> HostAsset:
     hostname = normalised.get("hostname") or normalised.get("name") or "unknown"
 
     return HostAsset(
-        name=normalised.get("name", hostname),
         type=normalised.get("type", "host"),
         source=normalised.get("source", "ansible"),
         metadata=normalised.get("metadata", {}),
@@ -141,7 +140,6 @@ def batch_discovery_task(self, hosts, user):
                 logger.error(f"Failed to parse facts for {host}: {e}")
                 # Create fallback asset
                 fallback_asset = HostAsset(
-                    name=host,
                     type="host",
                     source="ansible",
                     hostname=host,

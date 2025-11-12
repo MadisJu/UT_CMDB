@@ -103,7 +103,6 @@ def auto_discovery_task(self):
                 
                 # Create fallback asset
                 fallback_asset = HostAsset(
-                    name=machine.get("hostname", "unknown"),
                     type=machine.get("type", "unknown"),
                     hostname=machine.get("hostname", "unknown"),
                     ip_address=machine.get("ip_address", "unknown"),
@@ -247,7 +246,6 @@ def discovery_by_type_task(self, machine_type: str):
                 
                 # Create fallback asset
                 fallback_asset = HostAsset(
-                    name=machine.get("hostname", "unknown"),
                     type=machine.get("type", "unknown"),
                     hostname=machine.get("hostname", "unknown"),
                     ip_address=machine.get("ip_address", "unknown"),

@@ -1,7 +1,3 @@
-"""
-Machine inventory management API routes.
-"""
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Dict, Any, Optional
 from src.core.services.machine_inventory import MachineInventory
@@ -14,7 +10,6 @@ router = APIRouter(
     tags=["Machine Inventory"]
 )
 
-# Dependency to get machine inventory service
 def get_machine_inventory():
     return MachineInventory()
 
@@ -179,7 +174,6 @@ def get_target_hosts_with_users(inventory: MachineInventory = Depends(get_machin
     """Get list of (host, user) tuples for discovery."""
     try:
         targets = inventory.get_target_hosts_with_users()
-        # Convert tuples to lists for JSON serialization
         return [[host, user] for host, user in targets]
     except Exception as e:
         logger.error(f"Failed to get target hosts with users: {e}")
