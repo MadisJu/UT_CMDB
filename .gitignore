@@ -27,4 +27,8 @@ celery_results.db
 celery_broker.db
 celery_results.db
 celerybeat-schedule.db
+celerybeat-schedule.bak
+celerybeat-schedule.dat
+celerybeat-schedule.dir
+cmdb.db
 /wheelhouse/
