@@ -13,3 +13,9 @@ class JiraAsset(BaseModel):
 
 class JiraAQLResponse(BaseModel):
     objectEntries: List[JiraAsset]
+
+class JiraSchema(BaseModel):
+    id: str
+    name: str
+    objectCount: int
+    objectSchemaKey: str

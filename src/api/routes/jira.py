@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
-from ..schemas.jira import JiraAsset, JiraAQLResponse
+from ..schemas.jira import JiraAsset, JiraAQLResponse, JiraSchema
 from src.core.services.jira_service import JiraService
 from src.core.integrations.jira_client import JiraClient
 from ..schemas import asset
@@ -57,13 +57,14 @@ def get_jira_assets(
 
 
 
-@router.get("/schemas", tags=["Jira Integration (Debug)"])
+@router.get("/schemas", response_model=List[JiraSchema])
 def get_jira_schemas(jira_service: JiraService = Depends(get_jira_service)):
     """
     Get all asset schemas from Jira.
     """
     try:
-        return jira_service.get_asset_schemas()
+        paginated_response = jira_service.get_asset_schemas()
+        return paginated_response['values']
     except Exception as e:
         raise HTTPException(
             status_code=500,
