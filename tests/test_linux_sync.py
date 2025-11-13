@@ -1,12 +1,6 @@
-#!/usr/bin/env python3
-"""
-Test script to generate Linux asset data and sync it to Jira.
-"""
-
 import sys
 from pathlib import Path
 
-# Add the project root to Python path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
@@ -15,12 +9,10 @@ from src.core.integrations.jira_client import JiraClient
 from src.core.models.jira_model import map_linux_to_jira
 import logging
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def create_test_linux_assets():
-    """Create test Linux asset data."""
     
     test_assets = [
         LinuxAsset(
@@ -176,13 +168,10 @@ def test_jira_sync():
         return None
 
 def main():
-    """Main test function."""
     logger.info("Starting Linux asset sync test...")
     
-    # Test 1: Test mapping functions
     test_assets = test_jira_mapping()
     
-    # Test 2: Test actual Jira sync
     sync_results = test_jira_sync()
     
     if sync_results:

@@ -23,18 +23,10 @@ _ASSET_MODELS: Iterable[type[HostAsset]] = (
 
 
 def _looks_like_raw_facts(payload: Dict[str, Any]) -> bool:
-    """Heuristic to decide whether the payload represents raw Ansible facts."""
     return any(key.startswith("ansible_") for key in payload)
 
 
 def _coerce_asset_model(payload: Dict[str, Any]) -> HostAsset:
-    """
-    Best-effort conversion of discovery payloads into a HostAsset (or subtype).
-
-    The Ansible plugin may return raw fact dictionaries or serialised asset
-    models. This helper normalises the data so downstream code consistently
-    receives a Pydantic model instance.
-    """
     from src.core.models.fact_parser import parse_facts_to_asset
     from src.core.models.asset_model import HostAsset, LinuxAsset, WindowsAsset, SparcAsset
     normalised = dict(payload)
@@ -47,7 +39,7 @@ def _coerce_asset_model(payload: Dict[str, Any]) -> HostAsset:
 
     for model_cls in _ASSET_MODELS:
         try:
-            return model_cls.model_validate(normalised)  # type: ignore[arg-type]
+            return model_cls.model_validate(normalised) 
         except ValidationError:
             continue
 
@@ -79,9 +71,7 @@ def discovery_task(self, host: str, user: str):
         plugin_instance = get_plugin("ansible")
         result = plugin_instance.discover(host, user)
         if result:
-            # Use the _coerce_asset_model helper to properly parse facts
             asset = _coerce_asset_model(result)
-            # Persistence layer is not wired here; returning the parsed asset payload.
             logger.info(f"Discovered asset prepared: {asset.hostname}")
         return asset.dict() if asset else result
     except Exception as e:
@@ -91,33 +81,21 @@ def discovery_task(self, host: str, user: str):
 
 @celery_app.task(name="worker.tasks.discovery.batch_discovery_task", bind=True, max_retries=3)
 def batch_discovery_task(self, hosts, user):
-    """
-    Celery task for discovering multiple hosts using Ansible.
-    
-    Args:
-        hosts: List of target host IPs or hostnames
-        user: SSH user for connection
-        
-    Returns:
-        Dictionary containing discovered assets information
-    """
+    # discover multiple hosts using Ansible plugin
     from src.core.plugins.ansible_plugin import AnsiblePlugin
     from src.core.models.asset_model import HostAsset
     from src.core.services.jira_service import JiraService
     try:
         logger.info(f"Starting batch discovery task for {len(hosts)} hosts")
         
-        # Update task state
         self.update_state(
             state='PROGRESS',
             meta={'current': 0, 'total': len(hosts), 'status': f'Starting batch discovery for {len(hosts)} hosts...'}
         )
         
-        # Use Ansible plugin for batch discovery
         ansible_plugin = AnsiblePlugin()
         facts_dict = ansible_plugin.discover_all(hosts, user)
         
-        # Parse facts into asset models
         assets = []
         asset_models = []
         for host, facts in facts_dict.items():
@@ -126,7 +104,6 @@ def batch_discovery_task(self, hosts, user):
                 asset_models.append(asset)
                 assets.append(asset.dict())
 
-                # Update progress
                 self.update_state(
                     state='PROGRESS',
                     meta={
@@ -138,7 +115,6 @@ def batch_discovery_task(self, hosts, user):
                 
             except Exception as e:
                 logger.error(f"Failed to parse facts for {host}: {e}")
-                # Create fallback asset
                 fallback_asset = HostAsset(
                     type="host",
                     source="ansible",
@@ -170,7 +146,6 @@ def batch_discovery_task(self, hosts, user):
             logger.error("Failed to sync assets with Jira: %s", jira_error, exc_info=True)
             jira_summary = {"error": str(jira_error)}
         
-        # Return results
         return {
             "status": "success",
             "hosts": hosts,
@@ -183,7 +158,6 @@ def batch_discovery_task(self, hosts, user):
     except Exception as exc:
         logger.error(f"Batch discovery task failed: {exc}")
         
-        # Update task state with error
         self.update_state(
             state='FAILURE',
             meta={'current': 0, 'total': len(hosts), 'status': f'Batch discovery failed: {str(exc)}'}

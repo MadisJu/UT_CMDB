@@ -1,4 +1,4 @@
-"""Unit tests for scheduler configuration without live Celery services."""
+# scheduleri jaoks unit testid
 
 from pathlib import Path
 import sys
@@ -13,7 +13,6 @@ import pytest
 
 @pytest.fixture()
 def scheduler_module():
-    """Import and reload the scheduler module for each test."""
     import importlib
 
     for module in ["src.scheduler.celery_app", "src.scheduler"]:
@@ -27,7 +26,6 @@ def scheduler_module():
 
 
 def test_scheduler_configures_expected_tasks(scheduler_module):
-    """Importing the scheduler module should populate the beat schedule."""
     celery_app = scheduler_module.celery_app
     schedule = celery_app.conf.beat_schedule
 
@@ -38,7 +36,6 @@ def test_scheduler_configures_expected_tasks(scheduler_module):
 
 
 def test_scheduler_send_task_called(scheduler_module):
-    """Verify that executing a scheduled entry sends the expected task."""
     celery_app = scheduler_module.celery_app
     beat_schedule = celery_app.conf.beat_schedule
 
