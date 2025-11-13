@@ -11,16 +11,9 @@ from src.core.models.asset_model import HostAsset
 logger = logging.getLogger(__name__)
 
 
-class JiraClient:
-    """Jira Asset Management client for CMDB operations."""
-    
+class JiraClient:  
+
     def __init__(self, settings: Optional[Settings] = None):
-        """
-        Initialize Jira client.
-        
-        Args:
-            settings: Application settings object. If None, loads from global settings.
-        """
         if settings is None:
             from src.core.configs.config import settings as global_settings
             settings = global_settings
@@ -41,10 +34,6 @@ class JiraClient:
         }
     
     def query_assets(self, aql_query: str = "ObjectType = \"Servers\"", results_per_page: int = 50) -> List[JiraAsset]:
-        """
-        Query assets from Jira using AQL.
-        (See oli õige, seda ei muuda)
-        """
         endpoint = f"{self.base_url}/aql/objects"
         params = {"qlQuery": aql_query, "resultsPerPage": results_per_page}
         
@@ -65,10 +54,6 @@ class JiraClient:
             raise
     
     def get_asset_schemas(self) -> Dict[str, Any]:
-        """
-        Get all asset schemas from Jira.
-        (See oli õige, seda ei muuda)
-        """
         endpoint = f"{self.base_url}/objectschema/list"
         
         try:
@@ -88,16 +73,7 @@ class JiraClient:
             raise
     
     def get_object_type_schema(self, object_type_id: str = "25") -> Dict[str, Any]:
-        """
-        Get the schema for a specific object type, including all attribute definitions.
-        
-        Args:
-            object_type_id: The ID of the object type (default: "25" for Servers/Hardware)
-            
-        Returns:
-            Object type schema with all attributes
-        """
-        # Use the working endpoint that we know works
+
         endpoint = f"{self.base_url}/objectschema/list"
         
         try:
@@ -107,7 +83,6 @@ class JiraClient:
             
             all_schemas = response.json()
             
-            # Debug: print the structure
             print(f"Response type: {type(all_schemas)}")
             if isinstance(all_schemas, dict):
                 print(f"Response keys: {list(all_schemas.keys())}")
@@ -117,19 +92,15 @@ class JiraClient:
                     print(f"First item type: {type(all_schemas[0])}")
                     print(f"First item keys: {list(all_schemas[0].keys()) if isinstance(all_schemas[0], dict) else 'N/A'}")
             
-            # Handle different response structures
             schemas_to_search = []
             if isinstance(all_schemas, dict):
-                # Check for paginated response
                 if 'values' in all_schemas:
                     schemas_to_search = all_schemas['values']
-                # If it's a dict, it might contain schemas directly or in a nested structure
                 elif 'objectTypes' in all_schemas:
                     schemas_to_search = [all_schemas]
                 elif 'schemas' in all_schemas:
                     schemas_to_search = all_schemas['schemas']
                 else:
-                    # Try to find any nested structure that might contain objectTypes
                     for key, value in all_schemas.items():
                         if isinstance(value, dict) and 'objectTypes' in value:
                             schemas_to_search.append(value)
@@ -138,17 +109,14 @@ class JiraClient:
             elif isinstance(all_schemas, list):
                 schemas_to_search = all_schemas
             
-            # Find the object type in the schemas
             print(f"Searching in {len(schemas_to_search)} schemas...")
             for i, schema in enumerate(schemas_to_search):
                 print(f"Schema {i}: ID={schema.get('id')}, Name={schema.get('name')}")
                 
-                # Each schema contains object types, we need to fetch them
                 if isinstance(schema, dict) and 'id' in schema:
                     schema_id = schema['id']
                     try:
-                        # Fetch object types for this schema
-                        # Try different endpoints for object types
+                    
                         endpoints_to_try = [
                             f"{self.base_url}/objectschema/{schema_id}/objecttypes",
                             f"{self.base_url}/objectschema/{schema_id}/objecttype",
@@ -179,7 +147,6 @@ class JiraClient:
                             object_types = schema_data
                         elif isinstance(schema_data, dict):
                             print(f"Schema {schema_id} response keys: {list(schema_data.keys())}")
-                            # Try different possible keys for object types
                             object_types = []
                             for key in ['objectTypes', 'objectTypeDefinitions', 'types', 'definitions', 'values']:
                                 if key in schema_data:
@@ -193,10 +160,8 @@ class JiraClient:
                         for obj_type in object_types:
                             print(f"  Object type ID: {obj_type.get('id')}, Name: {obj_type.get('name')}")
                             if str(obj_type.get('id')) == str(object_type_id):
-                                # Found the object type, now fetch its attributes
                                 try:
-                                    # Use the correct JSM Assets API endpoint for attributes
-                                    # The /objecttype/{id}/attributes endpoint worked and returned a list
+
                                     attr_endpoints = [
                                         f"{self.base_url}/objecttype/{object_type_id}/attributes",
                                         f"{self.base_url}/objecttypeattribute?objectTypeId={object_type_id}",
@@ -231,7 +196,6 @@ class JiraClient:
                                         return obj_type
                                 except Exception as e:
                                     print(f"Failed to fetch attributes for object type {object_type_id}: {e}")
-                                    # Return the basic object type info if attribute fetch fails
                                     return obj_type
                     except Exception as e:
                         print(f"Failed to fetch schema {schema_id}: {e}")
@@ -247,26 +211,16 @@ class JiraClient:
             raise
     
     def list_object_attributes(self, object_type_id: str = "25") -> None:
-        """
-        List all available attributes for an object type with their IDs.
-        Useful for finding the correct attribute IDs to use in sync operations.
-        
-        Args:
-            object_type_id: The ID of the object type (default: "25" for Servers/Hardware)
-        """
         try:
             schema = self.get_object_type_schema(object_type_id)
             
             print(f"\n=== Attributes for Object Type {object_type_id} ===\n")
             
-            # Handle different response types
             attributes = None
             if isinstance(schema, list):
-                # Direct list of attributes
                 attributes = schema
                 print(f"Found {len(attributes)} attributes in direct list")
             elif isinstance(schema, dict):
-                # Try different possible key names for attributes
                 for key in ["objectTypeAttributes", "attributes", "attributeDefinitions", "typeAttributes"]:
                     if key in schema:
                         attributes = schema[key]
@@ -299,19 +253,8 @@ class JiraClient:
             raise
     
     def create_asset(self, asset_data: Dict[str, Any]) -> JiraAsset:
-        """
-        Create a new asset in Jira.
-        
-        Args:
-            asset_data: Asset data in Jira format
-            
-        Returns:
-            Created Jira asset
-            
-        Raises:
-            requests.exceptions.HTTPError: If API request fails
-        """
-        endpoint = f"{self.base_url}/object/create" # <--- PARANDATUD
+
+        endpoint = f"{self.base_url}/object/create"
         
         try:
             logger.info(f"Creating asset in Jira: {asset_data.get('label', 'Unknown')}")
@@ -330,20 +273,8 @@ class JiraClient:
             raise
     
     def update_asset(self, asset_id: str, asset_data: Dict[str, Any]) -> JiraAsset:
-        """
-        Update an existing asset in Jira.
-        
-        Args:
-            asset_id: ID of the asset to update
-            asset_data: Updated asset data in Jira format
-            
-        Returns:
-            Updated Jira asset
-            
-        Raises:
-            requests.exceptions.HTTPError: If API request fails
-        """
-        endpoint = f"{self.base_url}/object/{asset_id}"  # <--- PARANDATUD
+
+        endpoint = f"{self.base_url}/object/{asset_id}" 
         
         try:
             logger.info(f"Updating asset in Jira: {asset_id}")
@@ -362,20 +293,9 @@ class JiraClient:
             raise
     
     def delete_asset(self, asset_id: str) -> bool:
-        """
-        Delete an asset from Jira.
-        
-        Args:
-            asset_id: ID of the asset to delete
-            
-        Returns:
-            True if deletion was successful
-            
-        Raises:
-            requests.exceptions.HTTPError: If API request fails
-        """
+
     
-        endpoint = f"{self.base_url}/object/{asset_id}"  # <--- PARANDATUD
+        endpoint = f"{self.base_url}/object/{asset_id}"
         
         try:
             logger.info(f"Deleting asset from Jira: {asset_id}")
@@ -393,19 +313,8 @@ class JiraClient:
             raise
     
     def get_asset_by_id(self, asset_id: str) -> JiraAsset:
-        """
-        Get a specific asset by ID.
-        
-        Args:
-            asset_id: ID of the asset to retrieve
-            
-        Returns:
-            Jira asset
-            
-        Raises:
-            requests.exceptions.HTTPError: If API request fails
-        """
-        endpoint = f"{self.base_url}/object/{asset_id}"  # <--- PARANDATUD
+
+        endpoint = f"{self.base_url}/object/{asset_id}" 
         
         try:
             logger.info(f"Retrieving asset from Jira: {asset_id}")
@@ -425,16 +334,7 @@ class JiraClient:
 
 
     def find_asset_by_hostname(self, hostname: str) -> Optional[str]:
-        """
-        Find a Jira asset by its hostname.
-        
-        Args:
-            hostname: The hostname to search for.
-            
-        Returns:
-            The asset ID if found, otherwise None.
-        """
-        # The 'Name' attribute in Jira is used to store the hostname.
+
         aql_query = f'Name = "{hostname}"'
         try:
             logger.info(f"Searching for asset with hostname: {hostname}")
@@ -451,21 +351,14 @@ class JiraClient:
             return None    
     
     def sync_assets(self, assets: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Sync a list of assets to Jira, creating or updating them.
-        
-        Args:
-            assets: List of asset dictionaries (from HostAsset.dict())
-        """
+
         logger.info(f"Syncing {len(assets)} assets to Jira")
         results = {"total": len(assets), "created": 0, "updated": 0, "errors": 0, "error_details": []}
 
-        # Import mapping functions once
         from src.core.models.jira_model import map_host_to_jira, map_linux_to_jira, map_windows_to_jira, map_sparc_to_jira
 
         for asset_data in assets:
             try:
-                # Convert dict back to HostAsset model for type checking
                 asset_model = HostAsset(**asset_data)
                 hostname = asset_model.hostname
                 
@@ -488,18 +381,14 @@ class JiraClient:
 
                 if existing_asset_id:
                     logger.info(f"Updating asset in Jira: {hostname} (ID: {existing_asset_id})")
-                    # Remove objectTypeId from update payload to avoid constraint violation
                     update_payload = jira_payload.copy()
                     if "objectTypeId" in update_payload:
                         del update_payload["objectTypeId"]
-                    
-                    # Filter out attributes that might not exist on the existing object type
-                    # Keep only basic attributes that should exist on most object types
+
                     safe_attributes = []
                     for attr in update_payload.get("attributes", []):
                         attr_id = attr.get("objectTypeAttributeId")
-                        # Only include basic attributes that are likely to exist
-                        if attr_id in ["100", "121", "189", "190", "191"]:  # Name, IP, CPU Cores, CPU Model, Memory
+                        if attr_id in ["100", "121", "189", "190", "191"]: 
                             safe_attributes.append(attr)
                     
                     update_payload["attributes"] = safe_attributes
@@ -512,12 +401,10 @@ class JiraClient:
                     logger.info(f"Creating asset in Jira: {hostname.capitalize()}")
                     created_asset = self.create_asset(jira_payload)
                     results["created"] += 1
-                    # The response from create_asset is a JiraAsset model, which has .objectKey
                     asset_key = created_asset.objectKey if created_asset else 'N/A'
                     logger.info(f"Successfully created asset {asset_key} for hostname {hostname}")
 
             except Exception as e:
-                # Use the hostname from the model if available, otherwise fallback
                 hostname_for_error = asset_data.get("hostname", "unknown")
                 logger.error(f"Sync failed for {hostname_for_error}: {e}", exc_info=True)
                 results["errors"] += 1

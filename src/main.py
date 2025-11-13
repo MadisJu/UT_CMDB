@@ -17,7 +17,6 @@ from src.core.configs.config import settings
 processes = []
 
 def signal_handler(signum, frame):
-    """Handle shutdown signals gracefully."""
     print("\nShutting down CMDB components...")
     for process in processes:
         if process.poll() is None:
@@ -29,7 +28,6 @@ def signal_handler(signum, frame):
     sys.exit(0)
 
 def check_port_available(host, port):
-    """Check if a port is available."""
     import socket
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -40,7 +38,6 @@ def check_port_available(host, port):
         return False
 
 def find_available_port(host, start_port):
-    """Find an available port starting from start_port."""
     port = start_port
     max_attempts = 10
     attempts = 0
@@ -54,7 +51,6 @@ def find_available_port(host, start_port):
     raise RuntimeError(f"No available port found starting from {start_port} after {max_attempts} attempts")
 
 def start_celery_worker():
-    """Start Celery worker in a subprocess."""
     print("Starting Celery worker...")
     worker_process = subprocess.Popen([
         sys.executable, "-m", "celery", 
@@ -67,7 +63,6 @@ def start_celery_worker():
     return worker_process
 
 def start_celery_beat():
-    """Start Celery beat scheduler in a subprocess."""
     print("Starting Celery beat scheduler...")
     beat_process = subprocess.Popen([
         sys.executable, "-m", "celery", 
@@ -79,7 +74,6 @@ def start_celery_beat():
     return beat_process
 
 def start_api_server(host, port, debug):
-    """Start FastAPI server."""
     print(f"Starting CMDB API server on {host}:{port}")
     print(f"Debug mode: {debug}")
     print(f"Swagger UI available at: http://{host}:{port}/docs")
@@ -101,7 +95,6 @@ def start_api_server(host, port, debug):
         raise
 
 if __name__ == "__main__":
-    # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
@@ -122,16 +115,16 @@ if __name__ == "__main__":
     try:
         # Start Celery worker
         worker_process = start_celery_worker()
-        time.sleep(2)  # Give worker time to start
+        time.sleep(2) 
         
         # Start Celery beat scheduler
         beat_process = start_celery_beat()
-        time.sleep(2)  # Give beat time to start
+        time.sleep(2)  
         
         print(" All background services started successfully!")
         print("=" * 50)
         
-        # Start API server (this will block)
+        # Start API server 
         start_api_server(host, port, debug)
         
     except KeyboardInterrupt:

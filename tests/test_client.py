@@ -15,17 +15,14 @@ logger = logging.getLogger(__name__)
 def run_test():
     logger.info("Initializing JiraClient...")
     try:
-        # Initsialiseeri klient (see laeb seaded automaatselt)
         client = JiraClient(settings=settings)
         logger.info("JiraClient initialized.")
 
-        # --- List attributes for object type ID 13 ---
         logger.info("Listing attributes for object type ID 13...")
         client.list_object_attributes("13")
         
         return
 
-        # --- Test 1: CREATE ASSET ---
         logger.info("Testing create_asset...")
 
         # See on see JSON, mis Postmanis edukalt töötas

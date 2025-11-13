@@ -61,10 +61,10 @@ class Settings(BaseSettings):
     cmdb_debug: bool = Field(False, description="Debug mode", alias="CMDB_DEBUG")
 
     class Config:
-        env_file = Path(__file__).parent / ".env"  # load from .env file if present
+        env_file = Path(__file__).parent / ".env"  
         env_file_encoding = 'utf-8'
         case_sensitive = False
-        extra = "allow"  # Allow extra fields to prevent validation errors
+        extra = "allow" 
 
     def get_address_book(self) -> list[dict]:
         """Load hosts from the address book JSON."""
@@ -96,5 +96,4 @@ class Settings(BaseSettings):
             return self.cmdb_user
         return "root"
 
-# Create one global instance
 settings = Settings()

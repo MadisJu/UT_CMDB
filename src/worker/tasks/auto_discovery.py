@@ -1,12 +1,7 @@
-"""
-Automatic discovery task for all configured machines.
-"""
-
 import logging
 import sys
 from pathlib import Path
 
-# Add the project root to Python path
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -21,19 +16,11 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(name="src.worker.tasks.auto_discovery.auto_discovery_task", bind=True, max_retries=3)
 def auto_discovery_task(self):
-    """
-    Celery task for automatic discovery of all configured machines.
-    
-    Returns:
-        Dictionary containing discovered assets information
-    """
     try:
         logger.info("Starting automatic discovery task")
         
-        # Initialize machine inventory
         inventory = MachineInventory()
         
-        # Get all enabled machines
         machines = inventory.get_enabled_machines()
         
         if not machines:
@@ -47,20 +34,16 @@ def auto_discovery_task(self):
         
         logger.info(f"Found {len(machines)} enabled machines for discovery")
         
-        # Update task state
         self.update_state(
             state='PROGRESS',
             meta={'current': 0, 'total': len(machines), 'status': f'Starting discovery of {len(machines)} machines...'}
         )
         
-        # Get discovery settings
         discovery_settings = inventory.get_discovery_settings()
         default_user = discovery_settings.get("default_user", "root")
         
-        # Initialize Ansible plugin
         ansible_plugin = AnsiblePlugin()
         
-        # Discover all machines
         discovered_assets = []
         failed_discoveries = []
         
@@ -69,7 +52,6 @@ def auto_discovery_task(self):
                 host = machine.get("ip_address") or machine.get("hostname")
                 user = machine.get("user") or default_user
                 
-                # Update progress
                 self.update_state(
                     state='PROGRESS',
                     meta={
@@ -81,13 +63,10 @@ def auto_discovery_task(self):
                 
                 logger.info(f"Discovering machine: {host}")
                 
-                # Discover the machine
                 facts = ansible_plugin.discover(host, user)
                 
-                # Parse facts into asset model
                 asset = parse_facts_to_asset(facts)
                 
-                # Add machine configuration metadata
                 asset.metadata.update({
                     "configured_type": machine.get("type"),
                     "description": machine.get("description"),
@@ -101,7 +80,6 @@ def auto_discovery_task(self):
             except Exception as e:
                 logger.error(f"Failed to discover machine {machine.get('hostname', 'unknown')}: {e}")
                 
-                # Create fallback asset
                 fallback_asset = HostAsset(
                     type=machine.get("type", "unknown"),
                     hostname=machine.get("hostname", "unknown"),
@@ -122,7 +100,6 @@ def auto_discovery_task(self):
                     "error": str(e)
                 })
         
-        # Update final state
         self.update_state(
             state='PROGRESS',
             meta={
@@ -134,7 +111,6 @@ def auto_discovery_task(self):
         
         logger.info(f"Auto discovery completed: {len(discovered_assets)} assets discovered, {len(failed_discoveries)} failures")
         
-        # Return results
         return {
             "status": "success",
             "message": f"Auto discovery completed for {len(machines)} machines",
@@ -149,7 +125,6 @@ def auto_discovery_task(self):
     except Exception as exc:
         logger.error(f"Auto discovery task failed: {exc}")
         
-        # Update task state with error
         self.update_state(
             state='FAILURE',
             meta={'current': 0, 'total': 1, 'status': f'Auto discovery failed: {str(exc)}'}
@@ -160,23 +135,12 @@ def auto_discovery_task(self):
 
 @celery_app.task(name="src.worker.tasks.auto_discovery.discovery_by_type_task", max_retries=3, bind=True)
 def discovery_by_type_task(self, machine_type: str):
-    """
-    Celery task for discovering machines of a specific type.
-    
-    Args:
-        self: The Celery task instance.
-        machine_type: Type of machines to discover (e.g., 'linux', 'windows')
-        
-    Returns:
-        Dictionary containing discovered assets information
-    """
+
     try:
         logger.info(f"Starting discovery task for {machine_type} machines")
         
-        # Initialize machine inventory
         inventory = MachineInventory()
         
-        # Get machines of specified type
         machines = inventory.get_machines_by_type(machine_type)
         
         if not machines:
@@ -190,20 +154,16 @@ def discovery_by_type_task(self, machine_type: str):
         
         logger.info(f"Found {len(machines)} {machine_type} machines for discovery")
         
-        # Update task state
         self.update_state(
             state='PROGRESS',
             meta={'current': 0, 'total': len(machines), 'status': f'Starting discovery of {len(machines)} {machine_type} machines...'}
         )
         
-        # Get discovery settings
         discovery_settings = inventory.get_discovery_settings()
         default_user = discovery_settings.get("default_user", "root")
         
-        # Initialize Ansible plugin
         ansible_plugin = AnsiblePlugin()
         
-        # Discover machines
         discovered_assets = []
         failed_discoveries = []
         
@@ -212,7 +172,6 @@ def discovery_by_type_task(self, machine_type: str):
                 host = machine.get("ip_address") or machine.get("hostname")
                 user = machine.get("user") or default_user
                 
-                # Update progress
                 self.update_state(
                     state='PROGRESS',
                     meta={
@@ -224,13 +183,10 @@ def discovery_by_type_task(self, machine_type: str):
                 
                 logger.info(f"Discovering {machine_type} machine: {host}")
                 
-                # Discover the machine
                 facts = ansible_plugin.discover(host, user)
                 
-                # Parse facts into asset model
                 asset = parse_facts_to_asset(facts)
                 
-                # Add machine configuration metadata
                 asset.metadata.update({
                     "configured_type": machine.get("type"),
                     "description": machine.get("description"),
@@ -244,7 +200,6 @@ def discovery_by_type_task(self, machine_type: str):
             except Exception as e:
                 logger.error(f"Failed to discover {machine_type} machine {machine.get('hostname', 'unknown')}: {e}")
                 
-                # Create fallback asset
                 fallback_asset = HostAsset(
                     type=machine.get("type", "unknown"),
                     hostname=machine.get("hostname", "unknown"),
@@ -265,7 +220,6 @@ def discovery_by_type_task(self, machine_type: str):
                     "error": str(e)
                 })
         
-        # Update final state
         self.update_state(
             state='PROGRESS',
             meta={
@@ -277,7 +231,6 @@ def discovery_by_type_task(self, machine_type: str):
         
         logger.info(f"Type discovery completed: {len(discovered_assets)} {machine_type} assets discovered, {len(failed_discoveries)} failures")
         
-        # Return results
         return {
             "status": "success",
             "message": f"Type discovery completed for {len(machines)} {machine_type} machines",
@@ -292,7 +245,6 @@ def discovery_by_type_task(self, machine_type: str):
     except Exception as exc:
         logger.error(f"Type discovery task failed: {exc}")
         
-        # Update task state with error
         self.update_state(
             state='FAILURE',
             meta={'current': 0, 'total': 1, 'status': f'Type discovery failed: {str(exc)}'}

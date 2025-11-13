@@ -1,26 +1,19 @@
-# FastAPI and web server
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 requests>=2.31.0
 
-# Environment configuration
 python-dotenv>=1.0.0
 
-# Pydantic for data validation
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
 
-# Ansible integration
 ansible>=7.0.0
 ansible-runner>=2.3.0
 
-# Celery for background tasks
 celery>=5.3.0
 
-# Logging and utilities
 python-json-logger>=2.0.0
 
-# Database support
 sqlalchemy>=2.0.0
 
 pytest 

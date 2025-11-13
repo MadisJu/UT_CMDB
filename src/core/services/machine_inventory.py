@@ -15,20 +15,12 @@ class MachineInventory:
     """Service for managing machine inventory configuration."""
     
     def __init__(self, config_path: Optional[Path] = None):
-        """
-        Initialize machine inventory service.
-        
-        Args:
-            config_path: Path to configuration file. If None, uses default from settings.
-        """
         self.config_path = config_path or settings.address_book_path
         self._config_cache = None
         self._last_modified = None
     
     def _load_config(self) -> Dict[str, Any]:
-        """Load configuration from file with caching."""
         try:
-            # Check if file was modified
             current_modified = self.config_path.stat().st_mtime if self.config_path.exists() else 0
             
             if self._config_cache is None or current_modified > self._last_modified:
@@ -48,8 +40,7 @@ class MachineInventory:
             return self._get_default_config()
     
     def _get_default_config(self) -> Dict[str, Any]:
-        """Get default configuration."""
-        return {
+        return { # see osa hardcoded, tuleb muuta hiljem
             "all": [
                 {
                     "hostname": "25.44.45.59",
@@ -85,62 +76,28 @@ class MachineInventory:
         }
     
     def get_all_machines(self) -> List[Dict[str, Any]]:
-        """
-        Get all configured machines.
         
-        Returns:
-            List of machine configurations
-        """
         config = self._load_config()
         return config.get("all", [])
     
     def get_enabled_machines(self) -> List[Dict[str, Any]]:
-        """
-        Get only enabled machines.
         
-        Returns:
-            List of enabled machine configurations
-        """
         machines = self.get_all_machines()
         return [machine for machine in machines if machine.get("enabled", True)]
     
     def get_machines_by_type(self, machine_type: str) -> List[Dict[str, Any]]:
-        """
-        Get machines by type.
         
-        Args:
-            machine_type: Type of machines to retrieve (e.g., 'linux', 'windows')
-            
-        Returns:
-            List of machine configurations of specified type
-        """
         machines = self.get_enabled_machines()
         return [machine for machine in machines if machine.get("type", "").lower() == machine_type.lower()]
     
     def get_machines_by_category(self, category: str) -> List[Dict[str, Any]]:
-        """
-        Get machines by category.
         
-        Args:
-            category: Category name (e.g., 'linux_servers', 'windows_servers')
-            
-        Returns:
-            List of machine configurations in specified category
-        """
         config = self._load_config()
         categorized = config.get("categorized", {})
         return categorized.get(category, [])
     
     def get_machine_by_hostname(self, hostname: str) -> Optional[Dict[str, Any]]:
-        """
-        Get machine configuration by hostname.
         
-        Args:
-            hostname: Hostname to search for
-            
-        Returns:
-            Machine configuration if found, None otherwise
-        """
         machines = self.get_all_machines()
         for machine in machines:
             if machine.get("hostname") == hostname or machine.get("ip_address") == hostname:
@@ -148,32 +105,17 @@ class MachineInventory:
         return None
     
     def get_discovery_settings(self) -> Dict[str, Any]:
-        """
-        Get discovery settings.
         
-        Returns:
-            Discovery settings dictionary
-        """
         config = self._load_config()
         return config.get("discovery_settings", {})
     
     def get_target_hosts(self) -> List[str]:
-        """
-        Get list of target host IPs/hostnames for discovery.
         
-        Returns:
-            List of host IPs/hostnames
-        """
         machines = self.get_enabled_machines()
         return [machine.get("ip_address") or machine.get("hostname") for machine in machines]
     
     def get_target_hosts_with_users(self) -> List[tuple]:
-        """
-        Get list of (host, user) tuples for discovery.
         
-        Returns:
-            List of (host, user) tuples
-        """
         machines = self.get_enabled_machines()
         discovery_settings = self.get_discovery_settings()
         default_user = discovery_settings.get("default_user", "root")
@@ -187,15 +129,7 @@ class MachineInventory:
         return result
     
     def add_machine(self, machine_config: Dict[str, Any]) -> bool:
-        """
-        Add a new machine to the inventory.
         
-        Args:
-            machine_config: Machine configuration dictionary
-            
-        Returns:
-            True if successful, False otherwise
-        """
         try:
             config = self._load_config()
             
@@ -229,7 +163,6 @@ class MachineInventory:
             
             config["categorized"][category].append(machine_config)
             
-            # Save configuration
             self._save_config(config)
             logger.info(f"Added machine: {machine_config['hostname']}")
             return True
@@ -239,30 +172,19 @@ class MachineInventory:
             return False
     
     def remove_machine(self, hostname: str) -> bool:
-        """
-        Remove a machine from the inventory.
         
-        Args:
-            hostname: Hostname or IP of machine to remove
-            
-        Returns:
-            True if successful, False otherwise
-        """
         try:
             config = self._load_config()
             
-            # Remove from all machines
             if "all" in config:
                 config["all"] = [m for m in config["all"] 
                                if m.get("hostname") != hostname and m.get("ip_address") != hostname]
             
-            # Remove from categorized machines
             if "categorized" in config:
                 for category, machines in config["categorized"].items():
                     config["categorized"][category] = [m for m in machines 
                                                    if m.get("hostname") != hostname and m.get("ip_address") != hostname]
             
-            # Save configuration
             self._save_config(config)
             logger.info(f"Removed machine: {hostname}")
             return True
@@ -272,21 +194,11 @@ class MachineInventory:
             return False
     
     def update_machine(self, hostname: str, updates: Dict[str, Any]) -> bool:
-        """
-        Update a machine configuration.
         
-        Args:
-            hostname: Hostname or IP of machine to update
-            updates: Dictionary of fields to update
-            
-        Returns:
-            True if successful, False otherwise
-        """
         try:
             config = self._load_config()
             updated = False
             
-            # Update in all machines
             if "all" in config:
                 for machine in config["all"]:
                     if machine.get("hostname") == hostname or machine.get("ip_address") == hostname:
@@ -294,7 +206,6 @@ class MachineInventory:
                         updated = True
                         break
             
-            # Update in categorized machines
             if "categorized" in config:
                 for category, machines in config["categorized"].items():
                     for machine in machines:
@@ -316,15 +227,12 @@ class MachineInventory:
             return False
     
     def _save_config(self, config: Dict[str, Any]) -> None:
-        """Save configuration to file."""
         try:
-            # Ensure directory exists
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
             
             with self.config_path.open('w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
             
-            # Clear cache to force reload
             self._config_cache = None
             logger.info(f"Saved configuration to {self.config_path}")
             
@@ -333,23 +241,16 @@ class MachineInventory:
             raise
     
     def get_inventory_summary(self) -> Dict[str, Any]:
-        """
-        Get summary of machine inventory.
         
-        Returns:
-            Dictionary with inventory summary
-        """
         config = self._load_config()
         all_machines = config.get("all", [])
         enabled_machines = [m for m in all_machines if m.get("enabled", True)]
         
-        # Count by type
         type_counts = {}
         for machine in enabled_machines:
             machine_type = machine.get("type", "unknown")
             type_counts[machine_type] = type_counts.get(machine_type, 0) + 1
         
-        # Count by category
         category_counts = {}
         categorized = config.get("categorized", {})
         for category, machines in categorized.items():
