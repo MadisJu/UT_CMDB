@@ -26,7 +26,6 @@ class AnsiblePlugin(BasePlugin):
         self._create_ansible_config()
 
     def _check_ansible_availability(self):
-        """Check if Ansible is available in the system PATH."""
         try:
             result = subprocess.run(
                 ["ansible", "--version"],
@@ -62,9 +61,6 @@ pipelining = True
         ansible_cfg.write_text(config_content)
 
     def discover(self, target: str, user: str = "root") -> Dict[str, Any]:
-        """
-        Discover a single host using Ansible and return raw facts.
-        """
         try:
             user = user or getattr(settings, "ansible_user", "root")
             logger.info(f"Starting Ansible discovery for {target} as user={user}")
@@ -87,7 +83,6 @@ pipelining = True
             return self._create_fallback_facts(target)
 
     def _run_ansible_setup(self, target: str, user: str) -> Dict[str, Any]:
-        """Run ansible setup module using subprocess."""
         try:
             inventory_file = self.inventory_dir / f"{target.replace('.', '_')}.ini"
             inventory_content = f"[all]\n{target} ansible_host={target} ansible_user={user}\n"
@@ -110,8 +105,6 @@ pipelining = True
                 timeout=settings.ansible_timeout
             )
 
-            # --- Add this logging line to see the raw output ---
-            #logger.info(f"RAW ANSIBLE OUTPUT for {target}:\n{result.stdout}")
             
             if result.returncode == 0:
                 return self._parse_ansible_output(result.stdout, target)
@@ -130,7 +123,6 @@ pipelining = True
             return None
 
     def _parse_ansible_output(self, output: str, target: str) -> Dict[str, Any]:
-        """Parse ansible output to extract facts."""
         try:
             lines = output.strip().split('\n')
             for line in lines:
@@ -138,10 +130,8 @@ pipelining = True
                     parts = line.split('=>', 1)
                     if len(parts) > 1:
                         try:
-                            # Parse the entire JSON payload
                             facts = json.loads(parts[1].strip())
                             
-                            # Check if the expected key exists and return the whole object
                             if 'ansible_facts' in facts:
                                 facts['ansible_facts']['discovery_status'] = "success"
                                 return facts['ansible_facts']
@@ -155,7 +145,6 @@ pipelining = True
             return None
 
     def _create_fallback_facts(self, target: str) -> Dict[str, Any]:
-        """Create fallback facts when Ansible discovery fails."""
         return {
             "ansible_hostname": "unknown",
             "ansible_default_ipv4": {"address": target},

@@ -4,11 +4,9 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Add the project root to Python path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-# Load environment variables
 load_dotenv(project_root / "src" / "core" / "configs" / ".env")
 
 from src.core.configs.config import settings

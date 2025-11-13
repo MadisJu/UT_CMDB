@@ -2,14 +2,8 @@ from src.core.models.asset_model import HostAsset
 
 
 def map_host_to_jira(asset: HostAsset) -> dict:
-    """
-    Map a generic HostAsset to Jira format using a generic object type.
-    This is a fallback for unknown asset types.
-    """
-    # Generic attribute mapping - you'll need to find the correct object type and attribute IDs
-    # for your generic host object type in Jira
     return {
-        "objectTypeId": "25",  # Generic hardware object type (placeholder)
+        "objectTypeId": "25",  # placeholder
         "attributes": [
             {"objectTypeAttributeId": "100", "objectAttributeValues": [{"value": asset.hostname}]},
             {"objectTypeAttributeId": "121", "objectAttributeValues": [{"value": asset.ip_address}]},
@@ -17,12 +11,8 @@ def map_host_to_jira(asset: HostAsset) -> dict:
     }
 
 
-def map_linux_to_jira(asset):
-    """
-    Map Linux asset to Jira format using object type 13.
-    Uses the correct attribute IDs discovered from the Jira API.
-    """
-    # Real attribute IDs from Jira object type 
+def map_linux_to_jira(asset): #siin on vaja manuaalselt hetkel mappida
+
     name_field_id = "100"           # Name
     ip_address_field_id = "121"      # IP Address  
     os_version_field_id = "115"      # OS Version
@@ -78,7 +68,6 @@ def map_linux_to_jira(asset):
     if hasattr(asset, 'owner_group') and asset.owner_group:
         attributes.append({"objectTypeAttributeId": owner_group_field_id, "objectAttributeValues": [{"value": asset.owner_group}]})
     
-    # Newly added attributes
     if hasattr(asset, 'processor_count') and asset.processor_count:
         attributes.append({"objectTypeAttributeId": processor_count_field_id, "objectAttributeValues": [{"value": str(asset.processor_count)}]})
         
@@ -108,10 +97,8 @@ def map_linux_to_jira(asset):
 
 
 def map_windows_to_jira(asset):
-    """Map Windows asset to Jira format - same as generic host for now"""
     return map_host_to_jira(asset)
 
 
 def map_sparc_to_jira(asset):
-    """Map SPARC asset to Jira format - same as generic host for now"""
     return map_host_to_jira(asset)

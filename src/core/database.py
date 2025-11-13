@@ -18,21 +18,13 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_sqlite_path(raw_path: str) -> Path:
-    """
-    Convert the path portion of a ``sqlite:///`` URL into a filesystem path.
-
-    The default configuration uses relative paths (e.g. ``./cmdb.db``),
-    so we anchor them to the project root to keep the database inside
-    the repository.
-    """
-    # Strip optional leading "./" so Path handles it consistently
+    
     cleaned = raw_path.lstrip("/")
     path = Path(cleaned)
 
     if path.is_absolute():
         return path
 
-    # settings.base_dir points to ``src/core``; we want the project root
     project_root = settings.base_dir.parent.parent
     path = (project_root / path).resolve()
 
@@ -40,12 +32,7 @@ def _resolve_sqlite_path(raw_path: str) -> Path:
 
 
 def create_db_and_tables() -> None:
-    """
-    Ensure the configured database exists.
-
-    Right now we only support SQLite; for any other backend we simply log a
-    message so the application can still boot without hard failing.
-    """
+    
     db_url = settings.database_url
 
     if db_url.startswith("sqlite:///"):
