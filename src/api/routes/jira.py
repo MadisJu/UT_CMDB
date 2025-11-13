@@ -10,7 +10,6 @@ router = APIRouter(
     tags=["Jira Integration"]
 )
 
-# Dependency to get Jira service
 def get_jira_service():
     try:
         jira_client = JiraClient()
@@ -31,7 +30,7 @@ def get_jira_assets(
     aql_query: str = "ObjectType = \"Servers\"",
     jira_service: JiraService = Depends(get_jira_service)
 ):
-    """Get assets from Jira Asset Manager and return them in a simplified format."""
+    """Tagastab kõik assetid Jirast"""
     try:
         raw_assets = jira_service.get_all_assets(aql_query)
 
@@ -60,7 +59,7 @@ def get_jira_assets(
 @router.get("/schemas", response_model=List[JiraSchema])
 def get_jira_schemas(jira_service: JiraService = Depends(get_jira_service)):
     """
-    Get all asset schemas from Jira.
+    Tagastab kõik schemad Jirast.
     """
     try:
         paginated_response = jira_service.get_asset_schemas()

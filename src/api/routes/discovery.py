@@ -36,18 +36,13 @@ def start_discovery_job(
     ansible_plugin: AnsiblePlugin = Depends(get_ansible_plugin)
 ):
     """
-    Start a new asset discovery job.
-
-    This is a long-running operation that runs in the background.
-    API returns immediately with a job ID to track the status.
+    Discovery runnimine (job) ja Jirasse syncimine.
     """
     try:
-        # Generate unique job ID
         job_id = str(uuid.uuid4())
         
-        # Resolve target_host and user from request body with env fallbacks
         import os
-        target_host = payload.target_host or os.getenv("CMDB_HOST", "25.44.45.59")
+        target_host = payload.target_host or os.getenv("CMDB_HOST", "25.44.45.59") #NB! siin hardcoded IP
         user = payload.user or os.getenv("CMDB_USER", "chronia")
 
         # Start Celery task for discovery
@@ -75,13 +70,11 @@ def start_auto_discovery_job(
     inventory: MachineInventory = Depends(get_machine_inventory)
 ):
     """
-    Start automatic discovery of all configured machines and sync to Jira.
+    Automaatne discovery runnimine ja jirasse syncimine
     """
     try:
-        # Generate unique job ID
         job_id = str(uuid.uuid4())
         
-        # Chain the tasks: auto_discovery_task -> sync_discovered_assets
         task_chain = (auto_discovery_task.s() | sync_discovered_assets.s())
         task = task_chain.apply_async()
         
@@ -107,13 +100,11 @@ def start_type_discovery_job(
     inventory: MachineInventory = Depends(get_machine_inventory)
 ):
     """
-    Start discovery for machines of a specific type.
+    Discovery runnimine masina tüübi järgi.
     """
     try:
-        # Generate unique job ID
         job_id = str(uuid.uuid4())
         
-        # Start Celery task for type discovery
         task = discovery_by_type_task.delay(machine_type)
         
         logger.info(f"Started {machine_type} discovery job {job_id}")
@@ -133,17 +124,18 @@ def start_type_discovery_job(
             detail=f"Failed to start {machine_type} discovery job: {str(e)}"
         )
 
-@router.post("/immediate", status_code=status.HTTP_200_OK)
+# võimalik et tulevikus vaja
+"""@router.post("/immediate", status_code=status.HTTP_200_OK)
 def discover_immediate(
     target_host: str,
     user: Optional[str] = None,
     ansible_plugin: AnsiblePlugin = Depends(get_ansible_plugin)
 ):
-    """
+    /"/"/"
     Perform immediate asset discovery for a specific host.
     
     This runs synchronously and returns the discovered asset data.
-    """
+    /"/"/"
     try:
         # Use Ansible plugin to discover the host
         facts = ansible_plugin.discover(target_host, user)
@@ -171,4 +163,4 @@ def discover_immediate(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to discover asset: {str(e)}"
-        )
+        )"""

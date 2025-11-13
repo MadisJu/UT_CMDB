@@ -15,7 +15,7 @@ router = APIRouter(
 @router.get("/", response_model=List[job.Job])
 def get_all_jobs():
     """
-    Get all Celery tasks (jobs) with their current status.
+    Tagastab kõik Celery taskid(jobs).
     """
     try:
         # Get active tasks
@@ -68,7 +68,7 @@ def get_all_jobs():
 @router.get("/{task_id}", response_model=Dict[str, Any])
 def get_job_status(task_id: str):
     """
-    Get the status of a specific job by task ID.
+    Tagastab konkreetse taski (job) staatuse task ID alusel.
     """
     try:
         # Get task result from Celery
@@ -115,7 +115,7 @@ def get_job_status(task_id: str):
 @router.get("/active", response_model=List[Dict[str, Any]])
 def get_active_jobs():
     """
-    Get only active (running) jobs.
+    Tagastab kõik aktiivsed taskid (jobs).
     """
     try:
         active_tasks = celery_app.control.inspect().active()
@@ -146,7 +146,7 @@ def get_active_jobs():
 @router.post("/{task_id}/cancel", status_code=200)
 def cancel_job(task_id: str):
     """
-    Cancel a running job.
+    Tühistab jooksva taski (job).
     """
     try:
         # Revoke the task
@@ -165,7 +165,7 @@ def cancel_job(task_id: str):
 @router.get("/stats", response_model=Dict[str, Any])
 def get_job_stats():
     """
-    Get job statistics.
+    Tagastab taskide(jobs) statsid.
     """
     try:
         stats = celery_app.control.inspect().stats()

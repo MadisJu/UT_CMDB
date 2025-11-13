@@ -15,7 +15,7 @@ def get_machine_inventory():
 
 @router.get("/machines", response_model=List[Dict[str, Any]])
 def get_all_machines(inventory: MachineInventory = Depends(get_machine_inventory)):
-    """Get all configured machines."""
+    """Tagastab kõik masinad."""
     try:
         return inventory.get_all_machines()
     except Exception as e:
@@ -25,9 +25,11 @@ def get_all_machines(inventory: MachineInventory = Depends(get_machine_inventory
             detail=f"Failed to get machines: {str(e)}"
         )
 
+# järgmiseid endpointe võib tulevikus vaja minna
+"""
 @router.get("/machines/enabled", response_model=List[Dict[str, Any]])
 def get_enabled_machines(inventory: MachineInventory = Depends(get_machine_inventory)):
-    """Get only enabled machines."""
+    \"\"\"Get only enabled machines.\"\"\"
     try:
         return inventory.get_enabled_machines()
     except Exception as e:
@@ -42,7 +44,7 @@ def get_machines_by_type(
     machine_type: str,
     inventory: MachineInventory = Depends(get_machine_inventory)
 ):
-    """Get machines by type."""
+    \"\"\"Get machines by type.\"\"\"
     try:
         return inventory.get_machines_by_type(machine_type)
     except Exception as e:
@@ -57,7 +59,7 @@ def get_machine_by_hostname(
     hostname: str,
     inventory: MachineInventory = Depends(get_machine_inventory)
 ):
-    """Get machine by hostname or IP."""
+    \"\"\"Get machine by hostname or IP.\"\"\"
     try:
         machine = inventory.get_machine_by_hostname(hostname)
         if not machine:
@@ -77,7 +79,7 @@ def get_machine_by_hostname(
 
 @router.get("/summary", response_model=Dict[str, Any])
 def get_inventory_summary(inventory: MachineInventory = Depends(get_machine_inventory)):
-    """Get inventory summary."""
+    \"\"\"Get inventory summary.\"\"\"
     try:
         return inventory.get_inventory_summary()
     except Exception as e:
@@ -92,7 +94,7 @@ def add_machine(
     machine_config: Dict[str, Any],
     inventory: MachineInventory = Depends(get_machine_inventory)
 ):
-    """Add a new machine to the inventory."""
+    \"\"\"Add a new machine to the inventory.\"\"\"
     try:
         success = inventory.add_machine(machine_config)
         if not success:
@@ -116,7 +118,7 @@ def update_machine(
     updates: Dict[str, Any],
     inventory: MachineInventory = Depends(get_machine_inventory)
 ):
-    """Update a machine configuration."""
+    \"\"\"Update a machine configuration.\"\"\"
     try:
         success = inventory.update_machine(hostname, updates)
         if not success:
@@ -139,7 +141,7 @@ def remove_machine(
     hostname: str,
     inventory: MachineInventory = Depends(get_machine_inventory)
 ):
-    """Remove a machine from the inventory."""
+    \"\"\"Remove a machine from the inventory.\"\"\"
     try:
         success = inventory.remove_machine(hostname)
         if not success:
@@ -159,7 +161,7 @@ def remove_machine(
 
 @router.get("/targets", response_model=List[str])
 def get_target_hosts(inventory: MachineInventory = Depends(get_machine_inventory)):
-    """Get list of target host IPs/hostnames for discovery."""
+    \"\"\"Get list of target host IPs/hostnames for discovery.\"\"\"
     try:
         return inventory.get_target_hosts()
     except Exception as e:
@@ -171,7 +173,7 @@ def get_target_hosts(inventory: MachineInventory = Depends(get_machine_inventory
 
 @router.get("/targets/with-users", response_model=List[List[str]])
 def get_target_hosts_with_users(inventory: MachineInventory = Depends(get_machine_inventory)):
-    """Get list of (host, user) tuples for discovery."""
+    \"\"\"Get list of (host, user) tuples for discovery.\"\"\"
     try:
         targets = inventory.get_target_hosts_with_users()
         return [[host, user] for host, user in targets]
@@ -181,3 +183,4 @@ def get_target_hosts_with_users(inventory: MachineInventory = Depends(get_machin
             status_code=500,
             detail=f"Failed to get target hosts with users: {str(e)}"
         )
+"""

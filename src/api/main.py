@@ -2,7 +2,6 @@ import logging
 from fastapi import FastAPI
 from .routes import jira, jobs, sync, discovery, inventory
 from dotenv import load_dotenv
-from .middleware import add_process_time_header
 from src.core.database import create_db_and_tables
 
 # Laeb .env faili muutujad
@@ -20,9 +19,6 @@ def on_startup():
         create_db_and_tables()
     except Exception as exc:
         logger.warning("Database initialisation skipped: %s", exc, exc_info=True)
-
-# Aktiveerib middleware (jookseb iga päringu puhul)
-app.middleware("http")(add_process_time_header)
 
 # Registreerime ruuterid
 api_prefix = "/api/v1"
