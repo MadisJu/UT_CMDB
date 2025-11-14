@@ -12,10 +12,11 @@ Our goal is to provide Eesti Pank with a single source of truth for IT assets, r
 
 # Setup for Bank of Estonia
 
-- Offline-masin: paigalda wheelhouse
+- Juhised installimiseks ja käivitamiseks.
 1. Runi ```./build.sh``` online masinas, millel peab olema sama tüüp OS, kus seda käivitatakse.
 2. Peale build.sh runimist tuleb kopeerida tekkinud /wheelhouse kaust offline masina root kausa. Seejärel tuleb käivitada käsk ```./install.sh ./wheelhouse``` offline masinas.
-4. Seejärel tuleb runida ```./start.sh``` käsk.
+3. Configureeri failid (Mida on vaja muuta on näha allpool.)
+4. Et käivitada, tuleb jooksutada käsklus ```./start.sh```.
 
 ## Oluline: 
 **.env**
@@ -28,18 +29,15 @@ Our goal is to provide Eesti Pank with a single source of truth for IT assets, r
   - CMDB_HOST / cmdb_host
   - JIRA_ASSET_WORKSPACE_ID
   - JIRA_CLOUD_ID
-    
+  - ANSIBLE_INVENTORY_PATH
+
+Praegu on scheduler seadisatud jooksutama ja syncima iga 30-ne minuti tagant. Seda veel envis muuta ei saa, kuid saab src/scheduler/celery_app.py.
+
 Selles kaustas on ka jira_field_map.json, mille kaudu saab Jira asseti atribuute ühendada. Jira objektide id-d saab kätte minnes Jira Asset Manageri veebilehele. Seejärel tuleb valida schemade alt serverid vms, siis üks serveritest, atribuudid (üleval paremal) ja siis on juba võimalik kopeerida sealt vastavate atribuutide id-d.
 
 Vaja on ka muuta failis /src/core/services/jira_field_mapper_service.py os_object_type_ids id-d. Ehk siis tuleb seal muuta ära vastavate OS-de id-d.
 
-## Käivitus / testimine
-Pärast venv aktiveerimist ja sõltuvuste paigaldamist:
-  ```python src/main.py```
-  või
-  ```./scripts/start.sh```
-
   ### Algselt oleks soovitatav testida järgmiselt:
 * Esiteks tuleks teha src\core\configs\inventory.ini failist koopia, kus on esialgu ainult Linuxi masinad.
-* Kui Linuxi masinatega töötab probleemideta, siis saab edasi liikuda Windowsi masinate juurde.
+* Kui Linuxi masinatega töötab probleemideta, siis saab edasi liikuda Windowsi masinate juurde (ei ole garanteeritud et windowsi masinad tootavad)
 
