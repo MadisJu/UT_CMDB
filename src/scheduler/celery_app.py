@@ -36,7 +36,7 @@ beat_schedule = {}
 
 beat_schedule["periodic-auto-discovery-sync"] = {
     "task": "src.worker.tasks.auto_discovery.auto_discovery_and_sync",
-    "schedule": timedelta(seconds=30),
+    "schedule": timedelta(seconds=1200),
 }
 
 
