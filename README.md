@@ -8,36 +8,38 @@ The solution will:
 
 Our goal is to provide Eesti Pank with a single source of truth for IT assets, reduce manual work and improve compliance reporting.
 
-# SETUP
+--------------------------
+
+# Setup for Bank of Estonia
 
 - Offline-masin: paigalda wheelhouse
-  ./install.sh ./wheelhouse
-  ./start.sh
+1. Runi ```./build.sh``` online masinas, millel peab olema sama tüüp OS, kus seda käivitatakse.
+2. Peale build.sh runimist tuleb kopeerida tekkinud /wheelhouse kaust offline masina root kausa. Seejärel tuleb käivitada käsk ```./install.sh ./wheelhouse``` offline masinas.
+4. Seejärel tuleb runida ```./start.sh``` käsk.
 
-Oluline: .env ja config.json
-- .env: kopeeri vajadusel .env.example → .env ja redigeeri oma keskkonnamuutujad (andmebaasi aadress, Jira token, e-posti kasutaja jms).
+## Oluline: 
+**.env**
+- .env: kopeeri vajadusel .env.example (Github Wikis olemas) → .env ja redigeeri oma keskkonnamuutujad (andmebaasi aadress, Jira token, e-posti kasutaja jms). .env fail peab olema /src/core/configs/ kaustas. Samuti on vaja lisada .env faili Ansible inventory path.
   Näited muutujatest, mida kontrollida:
   - DATABASE_URL / database_url
   - JIRA_URL / jira_url
   - JIRA_API_TOKEN / jira_api_token
   - JIRA_USER_EMAIL / jira_user_email
   - CMDB_HOST / cmdb_host
-  Muudatused peavad olema .env failis rakendi juurkaustas või keskkonnamuutujates sõltuvalt teie seadistusest.
+  - JIRA_ASSET_WORKSPACE_ID
+  - JIRA_CLOUD_ID
+    
+Selles kaustas on ka jira_field_map.json, mille kaudu saab Jira asseti atribuute ühendada. Jira objektide id-d saab kätte minnes Jira Asset Manageri veebilehele. Seejärel tuleb valida schemade alt serverid vms, siis üks serveritest, atribuudid (üleval paremal) ja siis on juba võimalik kopeerida sealt vastavate atribuutide id-d.
 
-- config.json (aadressiraamat ja avastamise sätted)
-  Faili asukoht: `src/core/configs/config.json`
-  Redigeeri:
-  - "all": lisage või muutke hostikirjeid (hostname, ip_address, user, type, enabled jne)
-  - "discovery_settings": muutke `default_user`, `timeout`, `retry_count`, `parallel_discovery` jms
-  Näide: ` "discovery_settings": { "default_user": "chronia", "timeout": 300 }`
-  Ansible-plugin eelistab:
-  1) otseselt antud kasutajat
-  2) per-host `user` välja config.json-st
-  3) `discovery_settings.default_user` väärtust
+Vaja on ka muuta failis /src/core/services/jira_field_mapper_service.py os_object_type_ids id-d. Ehk siis tuleb seal muuta ära vastavate OS-de id-d.
 
-Käivitus / testimine
-- Pärast venv aktiveerimist ja sõltuvuste paigaldamist:
-  python src/main.py
+## Käivitus / testimine
+Pärast venv aktiveerimist ja sõltuvuste paigaldamist:
+  ```python src/main.py```
   või
-  ./scripts/start.sh
+  ```./scripts/start.sh```
+
+  ### Algselt oleks soovitatav testida järgmiselt:
+* Esiteks tuleks teha src\core\configs\inventory.ini failist koopia, kus on esialgu ainult Linuxi masinad.
+* Kui Linuxi masinatega töötab probleemideta, siis saab edasi liikuda Windowsi masinate juurde.
 
