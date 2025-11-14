@@ -30,14 +30,47 @@ class DiscoveryRequest(BaseModel):
     user: Optional[str] = None
 
 
+
+
+@router.post("/auto", status_code=status.HTTP_202_ACCEPTED)
+def start_auto_discovery_job(
+    inventory: MachineInventory = Depends(get_machine_inventory)
+):
+    """
+    Automaatne discovery runnimine ja jirasse syncimine
+    """
+    try:
+        job_id = str(uuid.uuid4())
+        
+        task_chain = (auto_discovery_task.s() | sync_discovered_assets.s())
+        task = task_chain.apply_async()
+        
+        logger.info(f"Started auto discovery and sync job {job_id}")
+        
+        return {
+            "message": "Auto discovery and Jira sync job has been started.", 
+            "job_id": job_id,
+            "task_id": task.id,
+            "target_machines": len(inventory.get_all_machines())
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start auto discovery job: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start auto discovery job: {str(e)}"
+        )
+
+
+"""
 @router.post("/", status_code=status.HTTP_202_ACCEPTED)
 def start_discovery_job(
     payload: DiscoveryRequest = Body(...),
     ansible_plugin: AnsiblePlugin = Depends(get_ansible_plugin)
 ):
-    """
+    /"/"/"
     Discovery runnimine (job) ja Jirasse syncimine.
-    """
+    /"/"/"
     try:
         job_id = str(uuid.uuid4())
         
@@ -65,43 +98,13 @@ def start_discovery_job(
             detail=f"Failed to start discovery job: {str(e)}"
         )
 
-@router.post("/auto", status_code=status.HTTP_202_ACCEPTED)
-def start_auto_discovery_job(
-    inventory: MachineInventory = Depends(get_machine_inventory)
-):
-    """
-    Automaatne discovery runnimine ja jirasse syncimine
-    """
-    try:
-        job_id = str(uuid.uuid4())
-        
-        task_chain = (auto_discovery_task.s() | sync_discovered_assets.s())
-        task = task_chain.apply_async()
-        
-        logger.info(f"Started auto discovery and sync job {job_id}")
-        
-        return {
-            "message": "Auto discovery and Jira sync job has been started.", 
-            "job_id": job_id,
-            "task_id": task.id,
-            "target_machines": len(inventory.get_enabled_machines())
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to start auto discovery job: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to start auto discovery job: {str(e)}"
-        )
 
 @router.post("/type/{machine_type}", status_code=status.HTTP_202_ACCEPTED)
 def start_type_discovery_job(
     machine_type: str,
     inventory: MachineInventory = Depends(get_machine_inventory)
 ):
-    """
-    Discovery runnimine masina tüübi järgi.
-    """
+    
     try:
         job_id = str(uuid.uuid4())
         
@@ -123,6 +126,8 @@ def start_type_discovery_job(
             status_code=500,
             detail=f"Failed to start {machine_type} discovery job: {str(e)}"
         )
+"""
+        
 
 # võimalik et tulevikus vaja
 """@router.post("/immediate", status_code=status.HTTP_200_OK)

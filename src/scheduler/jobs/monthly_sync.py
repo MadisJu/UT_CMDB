@@ -1,5 +1,7 @@
 from scheduler.celery_app import celery_app 
 
+#see ka suht placeholder
+
 if __name__ == "__main__":
     print("Start Celery beat with:\n"
           "  PYTHONPATH=. "

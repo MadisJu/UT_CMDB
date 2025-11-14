@@ -1,0 +1,35 @@
+{
+
+    "server.hostname": "173",
+    "server.os": "174",
+    "server.os_version": "196",
+    "server.model": "175",
+    "server.mac_address": "176",
+    "server.ipv4_address": "177",
+    "server.ipv6_address": "178",
+    "server.cpu_cores": "179",
+    "server.processor_type": "180",
+    "server.processor_count": "181",
+    "server.memory_mb": "182",
+    "server.swap_total_mb": "183",
+    "server.disk_total_gb": "184",
+    "server.tags": "185",
+
+    "linux.distro": "186",
+    "linux.kernel_version": "187",
+    "linux.package_count": "188",
+
+    "windows.os_version": "189",
+    "windows.installed_updates": "190",
+
+    "sparc.solaris_version": "191",
+    "sparc.cpu_arch": "192",
+
+    "application.app_name": "ATTR_ID_HERE",
+    "application.version": "ATTR_ID_HERE",
+    "application.dependencies": "ATTR_ID_HERE",
+
+    "server.type": "193",
+    "server.source": "194",
+    "server.name": "100"
+}

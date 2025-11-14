@@ -47,52 +47,73 @@ class AnsiblePlugin(BasePlugin):
         """Create ansible.cfg for proper configuration."""
         ansible_cfg = self.private_data_dir / "ansible.cfg"
         config_content = f"""[defaults]
-host_key_checking = False
-timeout = {settings.ansible_timeout}
-gathering = smart
-fact_caching = jsonfile
-fact_caching_connection = {self.private_data_dir}/fact_cache
-fact_caching_timeout = 86400
+        host_key_checking = False
+        timeout = {settings.ansible_timeout}
+        gathering = smart
+        fact_caching = jsonfile
+        fact_caching_connection = {self.private_data_dir}/fact_cache
+        fact_caching_timeout = 86400
 
-[ssh_connection]
-ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o AddressFamily=inet
-pipelining = True
-"""
+        [ssh_connection]
+        ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o AddressFamily=inet
+        pipelining = True
+        """
         ansible_cfg.write_text(config_content)
 
-    def discover(self, target: str, user: str = "root") -> Dict[str, Any]:
+    def discover(self, target: str, user: str = "root", is_windows: bool = False, password: str = None) -> Dict[str, Any]:
+        """
+        Discover facts from the target host.
+        
+        :param target: Hostname or IP
+        :param user: SSH or WinRM user
+        :param is_windows: Set True for Windows hosts
+        :param password: Required for Windows WinRM auth
+        """
         try:
             user = user or getattr(settings, "ansible_user", "root")
-            logger.info(f"Starting Ansible discovery for {target} as user={user}")
+            logger.info(f"Starting Ansible discovery for {target} (Windows={is_windows}) as user={user}")
             
             if not self.ansible_available:
                 logger.warning(f"Ansible not available, using fallback for {target}")
-                return self._create_fallback_facts(target)
+                return self._create_fallback_facts(target, is_windows)
             
-            facts = self._run_ansible_setup(target, user)
+            facts = self._run_ansible_setup(target, user, is_windows, password)
             
             if not facts:
                 logger.warning(f"Discovery failed for {target}, using fallback")
-                return self._create_fallback_facts(target)
+                return self._create_fallback_facts(target, is_windows)
 
             logger.info(f"Successfully gathered facts for {target}")
             return facts
                 
         except Exception as e:
             logger.error(f"Error during Ansible discovery for {target}: {e}")
-            return self._create_fallback_facts(target)
+            return self._create_fallback_facts(target, is_windows)
 
-    def _run_ansible_setup(self, target: str, user: str) -> Dict[str, Any]:
+
+    def _run_ansible_setup(self, target: str, user: str, is_windows: bool = False, password: str = None) -> Dict[str, Any]:
         try:
             inventory_file = self.inventory_dir / f"{target.replace('.', '_')}.ini"
-            inventory_content = f"[all]\n{target} ansible_host={target} ansible_user={user}\n"
+            if is_windows:
+                inventory_content = (
+                    f"[all]\n{target} ansible_host={target} "
+                    f"ansible_user={user} ansible_password={password} "
+                    f"ansible_connection=winrm ansible_winrm_transport=basic\n"
+                )
+                module = "win_setup"
+                extra_args = []
+            else:
+                inventory_content = f"[all]\n{target} ansible_host={target} ansible_user={user}\n"
+                module = "setup"
+                extra_args = ["-e", "ansible_python_interpreter=/usr/bin/python3"]
+            
             inventory_file.write_text(inventory_content)
 
             cmd = [
                 "ansible", "-i", str(inventory_file), "all",
-                "-m", "setup", "-a", "gather_subset=all",
+                "-m", module,
                 "--one-line", "-o",
-                "-e", "ansible_python_interpreter=/usr/bin/python3"
+                *extra_args
             ]
             
             logger.debug(f"Running ansible command: {' '.join(cmd)}")
@@ -105,9 +126,8 @@ pipelining = True
                 timeout=settings.ansible_timeout
             )
 
-            
             if result.returncode == 0:
-                return self._parse_ansible_output(result.stdout, target)
+                return self._parse_ansible_output(result.stdout, target, is_windows)
             else:
                 logger.error(
                     "Ansible command failed for %s: rc=%s\nSTDOUT:\n%s\nSTDERR:\n%s",
@@ -122,7 +142,12 @@ pipelining = True
             logger.error(f"Error running ansible for {target}: {e}")
             return None
 
-    def _parse_ansible_output(self, output: str, target: str) -> Dict[str, Any]:
+
+    def _parse_ansible_output(self, output: str, target: str, is_windows: bool = False) -> Dict[str, Any]:
+        """
+        Parse Ansible stdout into a facts dict.
+        Handles both Linux (setup) and Windows (win_setup) output.
+        """
         try:
             lines = output.strip().split('\n')
             for line in lines:
@@ -131,10 +156,11 @@ pipelining = True
                     if len(parts) > 1:
                         try:
                             facts = json.loads(parts[1].strip())
-                            
-                            if 'ansible_facts' in facts:
-                                facts['ansible_facts']['discovery_status'] = "success"
-                                return facts['ansible_facts']
+                            key = 'ansible_facts' if not is_windows else 'ansible_facts'
+                            if key in facts:
+                                facts[key]['discovery_status'] = "success"
+                                facts[key]['discovery_method'] = "ansible"
+                                return facts[key]
                         except json.JSONDecodeError as e:
                             logger.error(f"JSON decode error in ansible output for {target}: {e}")
                             continue
@@ -144,12 +170,13 @@ pipelining = True
             logger.error(f"Error parsing ansible output for {target}: {e}")
             return None
 
-    def _create_fallback_facts(self, target: str) -> Dict[str, Any]:
+
+    def _create_fallback_facts(self, target: str, is_windows: bool = False) -> Dict[str, Any]:
         return {
             "ansible_hostname": "unknown",
             "ansible_default_ipv4": {"address": target},
-            "ansible_distribution": "Unknown",
-            "ansible_os_family": "Unknown",
+            "ansible_distribution": "Windows" if is_windows else "Unknown",
+            "ansible_os_family": "Windows" if is_windows else "Unknown",
             "ansible_processor_vcpus": 1,
             "ansible_memtotal_mb": 1024,
             "ansible_kernel": "Unknown",

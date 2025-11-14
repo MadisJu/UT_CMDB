@@ -210,7 +210,8 @@ class JiraClient:
             logger.error(f"Unexpected error retrieving object type schema: {e}")
             raise
     
-    def list_object_attributes(self, object_type_id: str = "25") -> None:
+    def list_object_attributes(self, object_type_id: str = "25"):
+        print("START METHOD", flush=True)
         try:
             schema = self.get_object_type_schema(object_type_id)
             
@@ -255,6 +256,7 @@ class JiraClient:
     def create_asset(self, asset_data: Dict[str, Any]) -> JiraAsset:
 
         endpoint = f"{self.base_url}/object/create"
+        logger.info("creating asset to " + endpoint)
         
         try:
             logger.info(f"Creating asset in Jira: {asset_data.get('label', 'Unknown')}")
@@ -399,6 +401,7 @@ class JiraClient:
                     logger.info(f"Successfully updated asset for hostname {hostname}")
                 else:
                     logger.info(f"Creating asset in Jira: {hostname.capitalize()}")
+                    logger.info(f"Jira payload: {jira_payload}")
                     created_asset = self.create_asset(jira_payload)
                     results["created"] += 1
                     asset_key = created_asset.objectKey if created_asset else 'N/A'
@@ -413,3 +416,21 @@ class JiraClient:
         logger.info(f"Sync completed: {results['created']} created, {results['updated']} updated, {results['errors']} errors")
         return results
     
+    def list_object_attributes2(self, object_type_id: str = "25") -> list[dict]:
+        """
+        Return all attribute definitions for a given object type.
+        """
+        endpoint = f"{self.base_url}/objecttype/{object_type_id}/attributes"
+        response = requests.get(endpoint, headers=self.headers, auth=self.auth)
+        response.raise_for_status()
+        return response.json()
+
+    def create_attribute(self, attribute_payload: dict, object_type_id: str = "25") -> dict:
+        """
+        Create a new attribute for the obj whatever
+        Example payload: {"name": "cpu_cores", "type": "STRING"}
+        """
+        endpoint = f"{self.base_url}/objecttype/{object_type_id}/attributes"
+        response = requests.post(endpoint, headers=self.headers, json=attribute_payload, auth=self.auth)
+        response.raise_for_status()
+        return response.json()

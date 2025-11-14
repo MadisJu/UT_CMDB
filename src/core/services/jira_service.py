@@ -47,6 +47,7 @@ class JiraService:
             jira_data["label"] = asset.hostname or asset.name
             
             logger.info(f"Creating asset in Jira: {asset.hostname}")
+            logger.info(f"Jira data: {jira_data}")
             return self.jira_client.create_asset(jira_data)
             
         except Exception as e:

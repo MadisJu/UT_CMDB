@@ -1,7 +1,9 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field, json
+from pydantic import Field
 from pathlib import Path
 from typing import Optional
+import subprocess
+import json
 
 
 class Settings(BaseSettings):
@@ -77,6 +79,80 @@ class Settings(BaseSettings):
 
         return data.get("all", [])
 
+    def get_ansible_inventory(self) -> str:
+        """Return Ansible inventory path"""
+
+        path = self.ansible_inventory_path
+
+        if not Path(path).exists():
+            raise FileNotFoundError(f"Ansible inventory is not found at {path}")
+
+        try:
+            process = subprocess.run(
+                ["ansible-inventory", "--list", "-i", str(path)],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            raw = json.loads(process.stdout)
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to load Ansible inventory: {e}") from e
+
+        hostvars = raw.get("_meta", {}).get("hostvars", {})
+
+        groups = {
+            name: data
+            for name, data in raw.items()
+            if name != "_meta" and isinstance(data, dict)
+        }
+
+        def resolve_hosts(group_name: str, visited=None) -> list:
+            """Helper for grouping"""
+            if visited is None:
+                visited = set()
+
+            if group_name in visited:
+                return []
+
+            visited.add(group_name)
+
+            group = groups.get(group_name, {})
+
+            hosts = list(group.get("hosts", []))
+
+            for child in group.get("children", []):
+                hosts.extend(resolve_hosts(child, visited))
+
+            seen = set()
+            out = []
+            for h in hosts:
+                if h not in seen:
+                    seen.add(h)
+                    out.append(h)
+
+            return out
+
+        resolved = {}
+
+        for group_name, group_data in groups.items():
+
+            resolved_hosts = resolve_hosts(group_name)
+
+            resolved[group_name] = {
+                "vars": group_data.get("vars", {}),
+                "children": group_data.get("children", []),
+                "hosts": {
+                    host: hostvars.get(host, {})
+                    for host in resolved_hosts
+                },
+            }
+
+        return resolved
+
+        
+
     def get_discovery_settings(self) -> dict[str, any]:
         """Return discovery_settings dict from config.json (or empty dict)."""
         data = self._load_address_book_json()
@@ -95,5 +171,7 @@ class Settings(BaseSettings):
         if getattr(self, "cmdb_user", None):
             return self.cmdb_user
         return "root"
+    
+
 
 settings = Settings()

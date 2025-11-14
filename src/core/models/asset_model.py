@@ -6,12 +6,10 @@ class AssetBase(BaseModel):
     hostname: str
     type: str
     source: str = "ansible"
-    metadata: Dict[str, str] = Field(default_factory=dict)
+    name : str
 
 
-class HostAsset(AssetBase):
-    hostname: str
-    ip_address: Optional[str] = None
+class HostAsset(AssetBase): 
     os: Optional[str] = None
     os_version: Optional[str] = None
     model: Optional[str] = None
@@ -23,8 +21,7 @@ class HostAsset(AssetBase):
     processor_count: Optional[int] = None
     memory_mb: Optional[int] = None
     swap_total_mb: Optional[int] = None
-    disk_total_gb: Optional[float] = None
-    tags: List[str] = Field(default_factory=list)
+    disk_total_gb: Optional[int] = None
 
 
 class LinuxAsset(HostAsset):

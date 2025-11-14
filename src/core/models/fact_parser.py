@@ -37,11 +37,11 @@ def _get_total_disk_gb(facts: Dict[str, Any]) -> float:
                     except (ValueError, TypeError):
                         logger.warning(f"Could not parse size for a Windows disk.")
 
-        return round(total_bytes / (1024**3), 2) if total_bytes > 0 else 0.0
+        return round(total_bytes / (1024**3), 2) if total_bytes > 0 else 0
     
     except Exception as e:
         logger.error(f"An unexpected error occurred in _get_total_disk_gb: {e}")
-        return 0.0
+        return 0
 
 
 def _get_ipv6_address(facts: Dict[str, Any]) -> Optional[str]:
@@ -109,8 +109,7 @@ def parse_ansible_facts(facts: Dict[str, Any]) -> HostAsset:
             processor_count=facts.get("ansible_processor_count", 0),
             memory_mb=facts.get("ansible_memtotal_mb", 0),
             swap_total_mb=facts.get("ansible_swaptotal_mb"),
-            disk_total_gb=_get_total_disk_gb(facts),
-            metadata={"source": "ansible_facts", "discovery_status": "success"}
+            disk_total_gb=_get_total_disk_gb(facts)
         )
     except Exception as e:
         logger.error(f"Error parsing Ansible facts: {e}")
@@ -120,8 +119,7 @@ def parse_ansible_facts(facts: Dict[str, Any]) -> HostAsset:
             ip_address=facts.get("ansible_default_ipv4", {}).get("address", "0.0.0.0"),
             os="Unknown",
             cpu_cores=0,
-            memory_mb=0,
-            metadata={"source": "ansible_facts", "error": str(e)}
+            memory_mb=0
         )
 
 
@@ -135,6 +133,8 @@ def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
             net_info = {}
         
         return LinuxAsset(
+            type ="linux",
+            name=facts.get("ansible_hostname", "unknown-linux"),
             hostname=facts.get("ansible_hostname", "unknown-linux"),
             ip_address=net_info.get("address", "0.0.0.0"),
             os=facts.get("ansible_distribution", "Linux"),
@@ -151,8 +151,7 @@ def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
             disk_total_gb=_get_total_disk_gb(facts),
             distro=facts.get("ansible_distribution"),
             kernel_version=facts.get("ansible_kernel"),
-            package_count=len(facts.get("ansible_facts", {}).get("packages", [])),
-            metadata={"source": "ansible_linux", "discovery_status": "success"}
+            package_count=len(facts.get("ansible_facts", {}).get("packages", []))
         )
     except Exception as e:
         logger.error(f"Error parsing Linux facts: {e}")
@@ -161,8 +160,7 @@ def parse_linux_facts(facts: Dict[str, Any]) -> LinuxAsset:
             ip_address=facts.get("ansible_default_ipv4", {}).get("address", "0.0.0.0"),
             os="Linux",
             cpu_cores=0,
-            memory_mb=0,
-            metadata={"source": "ansible_linux", "error": str(e)}
+            memory_mb=0
         )
 
 
@@ -176,6 +174,8 @@ def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
             net_info = {}
 
         return WindowsAsset(
+            type ="windows",
+            name=facts.get("ansible_hostname", "unknown-windows"),
             hostname=facts.get("ansible_hostname", "unknown-windows"),
             ip_address=net_info.get("address", "0.0.0.0"),
             os="Windows",
@@ -190,8 +190,7 @@ def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
             memory_mb=facts.get("ansible_memtotal_mb", 0),
             swap_total_mb=facts.get("ansible_swaptotal_mb"),
             disk_total_gb=_get_total_disk_gb(facts),
-            installed_updates=facts.get("ansible_hotfixes", []),
-            metadata={"source": "ansible_windows", "discovery_status": "success"}
+            installed_updates=facts.get("ansible_hotfixes", [])
         )
     except Exception as e:
         logger.error(f"Error parsing Windows facts: {e}")
@@ -200,8 +199,7 @@ def parse_windows_facts(facts: Dict[str, Any]) -> WindowsAsset:
             ip_address=facts.get("ansible_default_ipv4", {}).get("address", "0.0.0.0"),
             os="Windows",
             cpu_cores=0,
-            memory_mb=0,
-            metadata={"source": "ansible_windows", "error": str(e)}
+            memory_mb=0
         )
 
 
@@ -215,6 +213,7 @@ def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
             net_info = {}
 
         return SparcAsset(
+            type ="sparc",
             hostname=facts.get("ansible_hostname", "unknown-sparc"),
             ip_address=net_info.get("address", "0.0.0.0"),
             os="Solaris",
@@ -230,8 +229,7 @@ def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
             swap_total_mb=facts.get("ansible_swaptotal_mb"),
             disk_total_gb=_get_total_disk_gb(facts),
             solaris_version=facts.get("ansible_distribution_version"),
-            cpu_arch=facts.get("ansible_architecture"),
-            metadata={"source": "ansible_sparc", "discovery_status": "success"}
+            cpu_arch=facts.get("ansible_architecture")
         )
     except Exception as e:
         logger.error(f"Error parsing SPARC facts: {e}")
@@ -240,19 +238,20 @@ def parse_sparc_facts(facts: Dict[str, Any]) -> SparcAsset:
             ip_address=facts.get("ansible_default_ipv4", {}).get("address", "0.0.0.0"),
             os="Solaris",
             cpu_cores=0,
-            memory_mb=0,
-            metadata={"source": "ansible_sparc", "error": str(e)}
+            memory_mb=0
         )
 
+LINUX_FAMILIES = ["linux", "debian", "ubuntu", "redhat", "centos", "fedora"]
 
 def determine_asset_type(facts: Dict[str, Any]) -> str:
+    logger.info(f"Determining asset type from facts: {facts.get('ansible_os_family')}")
     os_family = facts.get("ansible_os_family", "").lower()
     
-    if os_family == "windows":
+    if "windows" in os_family:
         return "windows"
-    elif os_family == "solaris":
+    elif "solaris" in os_family:
         return "sparc"
-    elif os_family == "linux":
+    elif any(fam in os_family for fam in LINUX_FAMILIES):
         return "linux"
     else:
         return "host"

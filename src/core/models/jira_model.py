@@ -1,104 +1,20 @@
 from src.core.models.asset_model import HostAsset
+from src.core.services.jira_field_mapper_service import JiraFieldMapper
 
+jira_mapper = JiraFieldMapper()
 
 def map_host_to_jira(asset: HostAsset) -> dict:
-    return {
-        "objectTypeId": "25",  # placeholder
-        "attributes": [
-            {"objectTypeAttributeId": "100", "objectAttributeValues": [{"value": asset.hostname}]},
-            {"objectTypeAttributeId": "121", "objectAttributeValues": [{"value": asset.ip_address}]},
-        ]
-    }
+    """
+    Map a generic host asset to Jira dynamically.
+    """
 
+    return jira_mapper.map_asset(asset)
 
-def map_linux_to_jira(asset): #siin on vaja manuaalselt hetkel mappida
+def map_linux_to_jira(asset: HostAsset) -> dict:
+    return jira_mapper.map_asset(asset)
 
-    name_field_id = "100"           # Name
-    ip_address_field_id = "121"      # IP Address  
-    os_version_field_id = "115"      # OS Version
-    asset_status_field_id = "114"    # Asset Status
-    operational_status_field_id = "117"  # Operational Status
-    status_field_id = "118"          # Status
-    asset_tag_field_id = "101"       # Asset Tag
-    serial_number_field_id = "102"   # Serial Number
-    model_name_field_id = "103"      # Model Name
-    device_type_field_id = "113"     # Device Type
-    support_group_field_id = "116"   # Support Group
-    owner_group_field_id = "112"     # Owner Group
-    domain_name_field_id = "122"     # Domain Name
-    cpu_cores_field_id = "189"       # CPU Cores (Physical cores)
-    cpu_model_field_id = "190"       # CPU Model
-    memory_field_id = "191"          # Memory
-    processor_count_field_id = "224"   # Processor Count
-    swap_total_field_id = "225"      # Swap total mb
-    disk_total_field_id = "226"      # HDD total mb (assuming this ID)
-    os_version_number_field_id = "227" # OS version number
-    mac_address_field_id = "228"     # Mac adr
-    ipv6_address_field_id = "229"    # Ipv6
+def map_windows_to_jira(asset: HostAsset) -> dict:
+    return jira_mapper.map_asset(asset)
 
-    attributes = [
-        {"objectTypeAttributeId": name_field_id, "objectAttributeValues": [{"value": asset.hostname}]},
-        {"objectTypeAttributeId": ip_address_field_id, "objectAttributeValues": [{"value": asset.ip_address}]},
-    ]
-    
-    if hasattr(asset, 'cpu_cores') and asset.cpu_cores:
-        attributes.append({"objectTypeAttributeId": cpu_cores_field_id, "objectAttributeValues": [{"value": str(asset.cpu_cores)}]})
-    
-    if hasattr(asset, 'metadata') and asset.metadata and 'processor_model' in asset.metadata:
-        attributes.append({"objectTypeAttributeId": cpu_model_field_id, "objectAttributeValues": [{"value": asset.metadata['processor_model']}]})
-    
-    if hasattr(asset, 'memory_mb') and asset.memory_mb:
-        memory_gb = round(asset.memory_mb / 1024, 2)
-        attributes.append({"objectTypeAttributeId": memory_field_id, "objectAttributeValues": [{"value": f"{memory_gb} GB"}]})
-    
-    if hasattr(asset, 'os') and asset.os:
-        attributes.append({"objectTypeAttributeId": os_version_field_id, "objectAttributeValues": [{"value": asset.os}]})
-    if hasattr(asset, 'domain_name') and asset.domain_name:
-        attributes.append({"objectTypeAttributeId": domain_name_field_id, "objectAttributeValues": [{"value": asset.domain_name}]})
-    if hasattr(asset, 'asset_tag') and asset.asset_tag:
-        attributes.append({"objectTypeAttributeId": asset_tag_field_id, "objectAttributeValues": [{"value": asset.asset_tag}]})
-    if hasattr(asset, 'serial_number') and asset.serial_number:
-        attributes.append({"objectTypeAttributeId": serial_number_field_id, "objectAttributeValues": [{"value": asset.serial_number}]})
-    if hasattr(asset, 'model_name') and asset.model_name:
-        attributes.append({"objectTypeAttributeId": model_name_field_id, "objectAttributeValues": [{"value": asset.model_name}]})
-    if hasattr(asset, 'device_type') and asset.device_type:
-        attributes.append({"objectTypeAttributeId": device_type_field_id, "objectAttributeValues": [{"value": asset.device_type}]})
-    if hasattr(asset, 'support_group') and asset.support_group:
-        attributes.append({"objectTypeAttributeId": support_group_field_id, "objectAttributeValues": [{"value": asset.support_group}]})
-    if hasattr(asset, 'owner_group') and asset.owner_group:
-        attributes.append({"objectTypeAttributeId": owner_group_field_id, "objectAttributeValues": [{"value": asset.owner_group}]})
-    
-    if hasattr(asset, 'processor_count') and asset.processor_count:
-        attributes.append({"objectTypeAttributeId": processor_count_field_id, "objectAttributeValues": [{"value": str(asset.processor_count)}]})
-        
-    if hasattr(asset, 'swap_total_mb') and asset.swap_total_mb:
-        attributes.append({"objectTypeAttributeId": swap_total_field_id, "objectAttributeValues": [{"value": f"{asset.swap_total_mb} MB"}]})
-
-    if hasattr(asset, 'disk_total_gb') and asset.disk_total_gb:
-        attributes.append({"objectTypeAttributeId": disk_total_field_id, "objectAttributeValues": [{"value": f"{asset.disk_total_gb} GB"}]})
-
-    if hasattr(asset, 'os_version') and asset.os_version:
-        attributes.append({"objectTypeAttributeId": os_version_number_field_id, "objectAttributeValues": [{"value": asset.os_version}]})
-
-    if hasattr(asset, 'mac_address') and asset.mac_address:
-        attributes.append({"objectTypeAttributeId": mac_address_field_id, "objectAttributeValues": [{"value": asset.mac_address}]})
-
-    if hasattr(asset, 'ipv6_address') and asset.ipv6_address:
-        attributes.append({"objectTypeAttributeId": ipv6_address_field_id, "objectAttributeValues": [{"value": asset.ipv6_address}]})
-
-    attributes.append({"objectTypeAttributeId": asset_status_field_id, "objectAttributeValues": [{"value": "In Use"}]})
-    attributes.append({"objectTypeAttributeId": operational_status_field_id, "objectAttributeValues": [{"value": "Active"}]})
-    attributes.append({"objectTypeAttributeId": status_field_id, "objectAttributeValues": [{"value": "Active"}]})
-
-    return {
-        "objectTypeId": "13",
-        "attributes": attributes
-    }
-
-
-def map_windows_to_jira(asset):
-    return map_host_to_jira(asset)
-
-
-def map_sparc_to_jira(asset):
-    return map_host_to_jira(asset)
+def map_sparc_to_jira(asset: HostAsset) -> dict:
+    return jira_mapper.map_asset(asset)

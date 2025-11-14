@@ -10,9 +10,15 @@ from src.core.services.machine_inventory import MachineInventory
 from src.core.plugins.ansible_plugin import AnsiblePlugin
 from src.core.models.fact_parser import parse_facts_to_asset
 from src.core.models.asset_model import HostAsset
+from src.worker.tasks.sync_to_jira import sync_discovered_assets
+
 
 logger = logging.getLogger(__name__)
 
+
+@celery_app.task(name="src.worker.tasks.auto_discovery.auto_discovery_and_sync")
+def auto_discovery_and_sync_task():
+    (auto_discovery_task.s() | sync_discovered_assets.s()).apply_async()
 
 @celery_app.task(name="src.worker.tasks.auto_discovery.auto_discovery_task", bind=True, max_retries=3)
 def auto_discovery_task(self):
@@ -21,7 +27,7 @@ def auto_discovery_task(self):
         
         inventory = MachineInventory()
         
-        machines = inventory.get_enabled_machines()
+        machines = inventory.get_target_hosts_with_users()
         
         if not machines:
             logger.warning("No enabled machines found in inventory")
@@ -39,19 +45,24 @@ def auto_discovery_task(self):
             meta={'current': 0, 'total': len(machines), 'status': f'Starting discovery of {len(machines)} machines...'}
         )
         
-        discovery_settings = inventory.get_discovery_settings()
-        default_user = discovery_settings.get("default_user", "root")
-        
         ansible_plugin = AnsiblePlugin()
         
         discovered_assets = []
         failed_discoveries = []
         
-        for i, machine in enumerate(machines):
+        logger.info(machines)
+
+        for i, (host_name, user) in enumerate(machines):
+
+
+            host_vars = inventory.get_host_vars(host_name)
+
+            logger.info(host_vars)
+
+            host = host_vars.get("ansible_host", host_name)  # Use IP if defined
+            user = host_vars.get("ansible_user", user) 
+
             try:
-                host = machine.get("ip_address") or machine.get("hostname")
-                user = machine.get("user") or default_user
-                
                 self.update_state(
                     state='PROGRESS',
                     meta={
@@ -63,40 +74,37 @@ def auto_discovery_task(self):
                 
                 logger.info(f"Discovering machine: {host}")
                 
-                facts = ansible_plugin.discover(host, user)
+                is_windows = (
+                    host_vars.get("type") == "windows" or
+                    host_vars.get("ansible_winrm_transport") == "basic"
+                )
+
+                if(is_windows):
+                    facts = ansible_plugin.discover(host, user, is_windows, host_vars.get("ansible_password"))
+                else:
+                    facts = ansible_plugin.discover(host, user)   
                 
                 asset = parse_facts_to_asset(facts)
                 
-                asset.metadata.update({
-                    "configured_type": machine.get("type"),
-                    "description": machine.get("description"),
-                    "discovery_method": "auto_discovery",
-                    "source_config": "machine_inventory"
-                })
+                host_vars = inventory.get_host_vars(host)
                 
                 discovered_assets.append(asset.dict())
                 logger.info(f"Successfully discovered {host}: {asset.hostname}")
                 
             except Exception as e:
-                logger.error(f"Failed to discover machine {machine.get('hostname', 'unknown')}: {e}")
+                logger.error(f"Failed to discover machine {host}: {e}")
                 
                 fallback_asset = HostAsset(
-                    type=machine.get("type", "unknown"),
-                    hostname=machine.get("hostname", "unknown"),
-                    ip_address=machine.get("ip_address", "unknown"),
+                    type=host_vars.get("type", "unknown"),
+                    hostname=host,
+                    ip_address=host,
                     os="Unknown",
                     cpu_cores=0,
                     memory_mb=0,
-                    metadata={
-                        "source": "auto_discovery_fallback",
-                        "error": str(e),
-                        "configured_type": machine.get("type"),
-                        "description": machine.get("description")
-                    }
                 )
                 discovered_assets.append(fallback_asset.dict())
                 failed_discoveries.append({
-                    "host": machine.get("hostname", "unknown"),
+                    "host": host,
                     "error": str(e)
                 })
         
@@ -159,9 +167,6 @@ def discovery_by_type_task(self, machine_type: str):
             meta={'current': 0, 'total': len(machines), 'status': f'Starting discovery of {len(machines)} {machine_type} machines...'}
         )
         
-        discovery_settings = inventory.get_discovery_settings()
-        default_user = discovery_settings.get("default_user", "root")
-        
         ansible_plugin = AnsiblePlugin()
         
         discovered_assets = []
@@ -170,7 +175,7 @@ def discovery_by_type_task(self, machine_type: str):
         for i, machine in enumerate(machines):
             try:
                 host = machine.get("ip_address") or machine.get("hostname")
-                user = machine.get("user") or default_user
+                user = machine.get("user") or "root"
                 
                 self.update_state(
                     state='PROGRESS',
