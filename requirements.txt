@@ -17,3 +17,10 @@ python-json-logger>=2.0.0
 sqlalchemy>=2.0.0
 
 pytest 
+
+ansible-core>=2.19.0
+ansible
+
+pywinrm>=0.4.2
+
+requests-ntlm

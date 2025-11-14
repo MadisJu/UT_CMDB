@@ -96,11 +96,15 @@ class AnsiblePlugin(BasePlugin):
             inventory_file = self.inventory_dir / f"{target.replace('.', '_')}.ini"
             if is_windows:
                 inventory_content = (
-                    f"[all]\n{target} ansible_host={target} "
+                    f"[all]\n"
+                    f"{target} ansible_host={target} "
                     f"ansible_user={user} ansible_password={password} "
-                    f"ansible_connection=winrm ansible_winrm_transport=basic\n"
+                    f"ansible_connection=winrm "
+                    f"ansible_winrm_transport=basic "
+                    f"ansible_winrm_scheme=http "
+                    f"ansible_winrm_server_cert_validation=ignore\n"
                 )
-                module = "win_setup"
+                module = "ansible.windows.setup"
                 extra_args = []
             else:
                 inventory_content = f"[all]\n{target} ansible_host={target} ansible_user={user}\n"
