@@ -99,9 +99,10 @@ class AnsiblePlugin(BasePlugin):
                     f"[all]\n"
                     f"{target} ansible_host={target} "
                     f"ansible_user={user} ansible_password={password} "
+                    f"ansible_port=5985 "
                     f"ansible_connection=winrm "
-                    f"ansible_winrm_transport=basic "
                     f"ansible_winrm_scheme=http "
+                    f"ansible_winrm_transport=basic "
                     f"ansible_winrm_server_cert_validation=ignore\n"
                 )
                 module = "ansible.windows.setup"
