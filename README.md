@@ -41,3 +41,4 @@ Vaja on ka muuta failis /src/core/services/jira_field_mapper_service.py os_objec
 * Esiteks tuleks teha src\core\configs\inventory.ini failist koopia, kus on esialgu ainult Linuxi masinad.
 * Kui Linuxi masinatega töötab probleemideta, siis saab edasi liikuda Windowsi masinate juurde (ei ole garanteeritud et windowsi masinad tootavad)
 
+Manuaalselt sync job can be initiated from localhost:8080/docs
