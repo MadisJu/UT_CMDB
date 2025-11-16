@@ -124,3 +124,7 @@ def test_sync_assets_to_jira(mock_jira_client, test_assets):
     assert result["updated"] == 1
     assert result["errors"] == 0
     assert not result["error_details"]
+
+def test_map_linux_to_jira():
+    result = map_linux_to_jira({"example": "data"})
+    assert result is not None
