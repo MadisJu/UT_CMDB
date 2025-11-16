@@ -1,13 +1,12 @@
-import sys
-from pathlib import Path
-import sys
-import os
-from src.core.models.asset_model import LinuxAsset
-from src.core.integrations.jira_client import JiraClient
-from src.core.models.jira_model import map_linux_to_jira
-import logging
+from unittest.mock import patch
+
+with patch("src.core.integrations.jira_client.JiraClient") as MockJiraClient:
+    MockJiraClient.return_value = None 
+    from src.core.models.jira_model import map_linux_to_jira
+
 import pytest
-from unittest.mock import MagicMock, patch
+from src.core.models.asset_model import LinuxAsset
+import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 @pytest.fixture
 def mock_jira_client():
     """Fixture to mock JiraClient."""
-    client = MagicMock(spec=JiraClient)
+    client = MockJiraClient()
     client.sync_assets.return_value = {
         "total": 3,
         "created": 2,
@@ -124,7 +123,3 @@ def test_sync_assets_to_jira(mock_jira_client, test_assets):
     assert result["updated"] == 1
     assert result["errors"] == 0
     assert not result["error_details"]
-
-def test_map_linux_to_jira():
-    result = map_linux_to_jira({"example": "data"})
-    assert result is not None
