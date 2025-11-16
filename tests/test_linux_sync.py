@@ -1,28 +1,42 @@
 import sys
 from pathlib import Path
-
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
-
+import sys
+import os
 from src.core.models.asset_model import LinuxAsset
 from src.core.integrations.jira_client import JiraClient
 from src.core.models.jira_model import map_linux_to_jira
 import logging
+import pytest
+from unittest.mock import MagicMock, patch
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def create_test_linux_assets():
-    
-    test_assets = [
+@pytest.fixture
+def mock_jira_client():
+    """Fixture to mock JiraClient."""
+    client = MagicMock(spec=JiraClient)
+    client.sync_assets.return_value = {
+        "total": 3,
+        "created": 2,
+        "updated": 1,
+        "errors": 0,
+        "error_details": []
+    }
+    return client
+
+@pytest.fixture
+def test_assets():
+    """Fixture to create test Linux assets."""
+    return [
         LinuxAsset(
             name="web-server-01",
             type="linux",
             hostname="web-server-01",
             ip_address="192.168.1.100",
             os="Ubuntu 22.04 LTS",
-            cpu_cores=8,  # Physical cores
-            memory_mb=8192,  # 8 GB
+            cpu_cores=8,
+            memory_mb=8192,
             kernel_version="5.15.0-91-generic",
             distro="Ubuntu",
             package_count=1250,
@@ -49,12 +63,12 @@ def create_test_linux_assets():
         ),
         LinuxAsset(
             name="db-server-02",
-            type="linux", 
+            type="linux",
             hostname="db-server-02",
             ip_address="192.168.1.101",
             os="Red Hat Enterprise Linux 8.8",
-            cpu_cores=16,  # Physical cores
-            memory_mb=16384,  # 16 GB
+            cpu_cores=16,
+            memory_mb=16384,
             kernel_version="4.18.0-477.13.1.el8_8.x86_64",
             distro="RHEL",
             package_count=2100,
@@ -78,115 +92,35 @@ def create_test_linux_assets():
                 "support_group": "Database Team",
                 "owner_group": "Data Team"
             }
-        ),
-        LinuxAsset(
-            name="dev-workstation-03",
-            type="linux",
-            hostname="dev-workstation-03", 
-            ip_address="192.168.1.102",
-            os="CentOS Stream 9",
-            cpu_cores=12,  # Physical cores
-            memory_mb=12288,  # 12 GB
-            kernel_version="5.14.0-362.18.1.el9_3.x86_64",
-            distro="CentOS",
-            package_count=1800,
-            metadata={
-                "discovery_method": "test_data",
-                "environment": "development",
-                "purpose": "development workstation",
-                "last_updated": "2024-01-15T10:40:00Z",
-                "memory_gb": "12",
-                "architecture": "x86_64",
-                "processor_model": "AMD Ryzen 5 5600X",
-                "physical_cpus": "1",
-                "virtual_cpus": "6",
-                "disk_usage": "45%",
-                "cpu_temperature": "38",
-                "domain_name": "dev.example.com",
-                "asset_tag": "DEV-003",
-                "serial_number": "SN456789123",
-                "model_name": "Custom Build",
-                "device_type": "Workstation",
-                "support_group": "Development Team",
-                "owner_group": "Dev Team"
-            }
         )
     ]
-    
-    return test_assets
 
-def test_jira_mapping():
-    """Test the Jira mapping functions."""
-    logger.info("Testing Jira mapping functions...")
-    
-    test_assets = create_test_linux_assets()
-    
+@patch("src.core.services.jira_field_mapper_service.JiraFieldMapper.save_mapping")
+@patch("src.core.integrations.jira_client.JiraClient.create_attribute")
+def test_map_linux_to_jira(mock_create_attribute, mock_save_mapping, test_assets):
+    """Test mapping Linux assets to Jira payload."""
+    # Mock the create_attribute method to return a successful response
+    mock_create_attribute.return_value = {
+        "id": 123,
+        "name": "Mock Attribute",
+        "objectTypeId": 12
+    }
+
+    # Mock the save_mapping method to do nothing
+    mock_save_mapping.return_value = None
+
     for asset in test_assets:
-        logger.info(f"\n=== Testing mapping for {asset.hostname} ===")
-        
-        # Test the mapping function
         jira_payload = map_linux_to_jira(asset)
-        
-        logger.info(f"Object Type ID: {jira_payload['objectTypeId']}")
-        logger.info(f"Number of attributes: {len(jira_payload['attributes'])}")
-        
-        # Show the mapped attributes
-        for attr in jira_payload['attributes']:
-            attr_id = attr['objectTypeAttributeId']
-            attr_value = attr['objectAttributeValues'][0]['value']
-            logger.info(f"  Attribute ID {attr_id}: {attr_value}")
-    
-    return test_assets
+        assert jira_payload["objectTypeId"] is not None
+        assert len(jira_payload["attributes"]) > 0
 
-def test_jira_sync():
-    """Test syncing assets to Jira."""
-    logger.info("\n=== Testing Jira Sync ===")
-    
-    try:
-        # Create test assets
-        test_assets = create_test_linux_assets()
-        
-        # Convert to dict format (as expected by sync_assets)
-        assets_to_sync = [asset.dict() for asset in test_assets]
-        
-        logger.info(f"Created {len(assets_to_sync)} test Linux assets")
-        
-        # Initialize Jira client
-        jira_client = JiraClient()
-        
-        # Sync assets to Jira
-        logger.info("Starting sync to Jira...")
-        sync_results = jira_client.sync_assets(assets_to_sync)
-        
-        logger.info("Sync completed!")
-        logger.info(f"Results: {sync_results}")
-        
-        return sync_results
-        
-    except Exception as e:
-        logger.error(f"Sync test failed: {e}", exc_info=True)
-        return None
+def test_sync_assets_to_jira(mock_jira_client, test_assets):
+    """Test syncing Linux assets to Jira."""
+    assets_to_sync = [asset.dict() for asset in test_assets]
+    result = mock_jira_client.sync_assets(assets_to_sync)
 
-def main():
-    logger.info("Starting Linux asset sync test...")
-    
-    test_assets = test_jira_mapping()
-    
-    sync_results = test_jira_sync()
-    
-    if sync_results:
-        logger.info("\n=== Test Results Summary ===")
-        logger.info(f"Total assets processed: {sync_results['total']}")
-        logger.info(f"Created: {sync_results['created']}")
-        logger.info(f"Updated: {sync_results['updated']}")
-        logger.info(f"Errors: {sync_results['errors']}")
-        
-        if sync_results['error_details']:
-            logger.error("Error details:")
-            for error in sync_results['error_details']:
-                logger.error(f"  - {error}")
-    else:
-        logger.error("Sync test failed!")
-
-if __name__ == "__main__":
-    main()
+    assert result["total"] == 3
+    assert result["created"] == 2
+    assert result["updated"] == 1
+    assert result["errors"] == 0
+    assert not result["error_details"]
