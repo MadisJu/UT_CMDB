@@ -1,6 +1,6 @@
 # Test Execution Guide
 
-This directory contains tests for the CMDB project, including specific use case verifications (UC-04, UC-05, UC-06).
+/integration folder contains tests for the CMDB project tests, including specific use case verifications (UC-04, UC-05, UC-06).
 
 ## Prerequisites
 
