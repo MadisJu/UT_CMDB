@@ -5,6 +5,8 @@ import logging
 import json
 from typing import Dict, Any
 import subprocess
+import os
+from textwrap import dedent
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,8 @@ class AnsiblePlugin(BasePlugin):
     def _create_ansible_config(self):
         """Create ansible.cfg for proper configuration."""
         ansible_cfg = self.private_data_dir / "ansible.cfg"
-        config_content = f"""[defaults]
+        config_content = dedent(f"""\
+        [defaults]
         host_key_checking = False
         timeout = {settings.ansible_timeout}
         gathering = smart
@@ -57,8 +60,9 @@ class AnsiblePlugin(BasePlugin):
         [ssh_connection]
         ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o AddressFamily=inet
         pipelining = True
-        """
+        """)
         ansible_cfg.write_text(config_content)
+        self.ansible_cfg_path = ansible_cfg
 
     def discover(self, target: str, user: str = "root", is_windows: bool = False, password: str = None) -> Dict[str, Any]:
         """
@@ -123,12 +127,23 @@ class AnsiblePlugin(BasePlugin):
             
             logger.debug(f"Running ansible command: {' '.join(cmd)}")
 
+            env = os.environ.copy()
+            env.setdefault("ANSIBLE_CONFIG", str(self.ansible_cfg_path))
+            env.setdefault("ANSIBLE_HOST_KEY_CHECKING", "False")
+            env.setdefault(
+                "ANSIBLE_SSH_ARGS",
+                "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
+                "-o ControlMaster=auto -o ControlPersist=60s -o AddressFamily=inet",
+            )
+            env.setdefault("ANSIBLE_RETRY_FILES_ENABLED", "False")
+
             result = subprocess.run(
                 cmd,
                 cwd=str(self.private_data_dir),
                 capture_output=True,
                 text=True,
-                timeout=settings.ansible_timeout
+                timeout=settings.ansible_timeout,
+                env=env,
             )
 
             if result.returncode == 0:

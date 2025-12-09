@@ -26,6 +26,9 @@ Our goal is to provide Eesti Pank with a single source of truth for IT assets, r
   - JIRA_URL / jira_url
   - JIRA_API_TOKEN / jira_api_token
   - JIRA_USER_EMAIL / jira_user_email
+  - JIRA_PROXY_URL / jira_proxy_url (valikuline)
+  - JIRA_PROXY_USERNAME / jira_proxy_username (valikuline)
+  - JIRA_PROXY_PASSWORD / jira_proxy_password (valikuline)
   - CMDB_HOST / cmdb_host
   - JIRA_ASSET_WORKSPACE_ID
   - JIRA_CLOUD_ID

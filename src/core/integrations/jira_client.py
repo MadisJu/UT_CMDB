@@ -1,8 +1,8 @@
 import requests
 from requests.auth import HTTPBasicAuth
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
 import logging
+from urllib.parse import urlparse
 from src.api.schemas.jira import JiraAsset, JiraAssetAttribute, JiraAQLResponse
 from src.core.configs.config import Settings
 from src.core.models.fact_parser import parse_facts_to_asset
@@ -22,6 +22,11 @@ class JiraClient:
         self.token = settings.jira_api_token
         self.cloud_id = settings.jira_cloud_id
         self.workspace_id = settings.jira_asset_workspace_id
+        self.proxies = self._build_proxy_config(
+            settings.jira_proxy_url,
+            settings.jira_proxy_username,
+            settings.jira_proxy_password,
+        )
         
         if not all([self.email, self.token, self.cloud_id, self.workspace_id]):
             raise ValueError("Jira credentials, cloud ID, and workspace ID must be set in settings.")
@@ -32,6 +37,34 @@ class JiraClient:
             "Accept": "application/json",
             "Content-Type": "application/json"
         }
+
+        if self.proxies:
+            logger.info("Jira client configured to use proxy settings.")
+
+    @staticmethod
+    def _build_proxy_config(proxy_url: Optional[str], username: Optional[str], password: Optional[str]) -> Optional[Dict[str, str]]:
+        if not proxy_url:
+            return None
+
+        if "://" not in proxy_url:
+            proxy_url = f"http://{proxy_url}"
+
+        if username:
+            parsed = urlparse(proxy_url)
+            host = parsed.hostname or parsed.netloc
+            port = f":{parsed.port}" if parsed.port else ""
+            user_info = f"{username}:{password or ''}@"
+            netloc = f"{user_info}{host}{port}"
+            proxy_url = parsed._replace(netloc=netloc, path="", params="", query="", fragment="").geturl()
+
+        return {"http": proxy_url, "https": proxy_url}
+
+    def _request(self, method: str, url: str, **kwargs):
+        request_kwargs = {"headers": self.headers, "auth": self.auth}
+        if self.proxies:
+            request_kwargs["proxies"] = self.proxies
+        request_kwargs.update(kwargs)
+        return requests.request(method, url, **request_kwargs)
     
     def query_assets(self, aql_query: str = "ObjectType = \"Servers\"", results_per_page: int = 50) -> List[JiraAsset]:
         endpoint = f"{self.base_url}/aql/objects"
@@ -39,7 +72,7 @@ class JiraClient:
         
         try:
             logger.info(f"Querying Jira assets with AQL: {aql_query}")
-            response = requests.get(endpoint, headers=self.headers, params=params, auth=self.auth)
+            response = self._request("get", endpoint, params=params)
             response.raise_for_status()
             
             data = JiraAQLResponse(**response.json())
@@ -58,7 +91,7 @@ class JiraClient:
         
         try:
             logger.info("Fetching Jira asset schemas")
-            response = requests.get(endpoint, headers=self.headers, auth=self.auth)
+            response = self._request("get", endpoint)
             response.raise_for_status()
             
             schemas = response.json()
@@ -78,7 +111,7 @@ class JiraClient:
         
         try:
             logger.info(f"Fetching all object schemas to find attributes for type ID: {object_type_id}")
-            response = requests.get(endpoint, headers=self.headers, auth=self.auth)
+            response = self._request("get", endpoint)
             response.raise_for_status()
             
             all_schemas = response.json()
@@ -128,7 +161,7 @@ class JiraClient:
                         for endpoint in endpoints_to_try:
                             try:
                                 print(f"Trying endpoint: {endpoint}")
-                                schema_response = requests.get(endpoint, headers=self.headers, auth=self.auth)
+                                schema_response = self._request("get", endpoint)
                                 schema_response.raise_for_status()
                                 schema_data = schema_response.json()
                                 print(f"Success with endpoint: {endpoint}")
@@ -175,7 +208,7 @@ class JiraClient:
                                     for endpoint in attr_endpoints:
                                         try:
                                             print(f"Trying attribute endpoint: {endpoint}")
-                                            attr_response = requests.get(endpoint, headers=self.headers, auth=self.auth)
+                                            attr_response = self._request("get", endpoint)
                                             attr_response.raise_for_status()
                                             attr_data = attr_response.json()
                                             print(f"Success with attribute endpoint: {endpoint}")
@@ -260,7 +293,7 @@ class JiraClient:
         
         try:
             logger.info(f"Creating asset in Jira: {asset_data.get('label', 'Unknown')}")
-            response = requests.post(endpoint, headers=self.headers, json=asset_data, auth=self.auth)
+            response = self._request("post", endpoint, json=asset_data)
             response.raise_for_status()
             
             created_asset = JiraAsset(**response.json())
@@ -280,7 +313,7 @@ class JiraClient:
         
         try:
             logger.info(f"Updating asset in Jira: {asset_id}")
-            response = requests.put(endpoint, headers=self.headers, json=asset_data, auth=self.auth)
+            response = self._request("put", endpoint, json=asset_data)
             response.raise_for_status()
             
             updated_asset = JiraAsset(**response.json())
@@ -301,7 +334,7 @@ class JiraClient:
         
         try:
             logger.info(f"Deleting asset from Jira: {asset_id}")
-            response = requests.delete(endpoint, headers=self.headers, auth=self.auth)
+            response = self._request("delete", endpoint)
             response.raise_for_status()
             
             logger.info(f"Successfully deleted asset: {asset_id}")
@@ -320,7 +353,7 @@ class JiraClient:
         
         try:
             logger.info(f"Retrieving asset from Jira: {asset_id}")
-            response = requests.get(endpoint, headers=self.headers, auth=self.auth)
+            response = self._request("get", endpoint)
             response.raise_for_status()
             
             asset = JiraAsset(**response.json())
@@ -421,7 +454,7 @@ class JiraClient:
         Return all attribute definitions for a given object type.
         """
         endpoint = f"{self.base_url}/objecttype/{object_type_id}/attributes"
-        response = requests.get(endpoint, headers=self.headers, auth=self.auth)
+        response = self._request("get", endpoint)
         response.raise_for_status()
         return response.json()
 
@@ -431,6 +464,6 @@ class JiraClient:
         Example payload: {"name": "cpu_cores", "type": "STRING"}
         """
         endpoint = f"{self.base_url}/objecttype/{object_type_id}/attributes"
-        response = requests.post(endpoint, headers=self.headers, json=attribute_payload, auth=self.auth)
+        response = self._request("post", endpoint, json=attribute_payload)
         response.raise_for_status()
         return response.json()

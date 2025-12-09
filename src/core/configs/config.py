@@ -24,6 +24,15 @@ class Settings(BaseSettings):
     jira_user_email: Optional[str] = Field(None, description="Email of API user")
     jira_asset_workspace_id: Optional[str] = Field(None, description="ID of the Jira Assets workspace")
     jira_cloud_id: Optional[str] = Field(None, description="Jira Cloud ID")
+    jira_proxy_url: Optional[str] = Field(
+        None, description="Proxy URL for Jira calls, e.g. http://proxy:3128"
+    )
+    jira_proxy_username: Optional[str] = Field(
+        None, description="Optional username for proxy authentication"
+    )
+    jira_proxy_password: Optional[str] = Field(
+        None, description="Optional password for proxy authentication"
+    )
 
     # --- CMDB ---
     cmdb_host: Optional[str] = Field(None, description="CMDB host IP address")
@@ -35,6 +44,15 @@ class Settings(BaseSettings):
     ansible_playbook_path: str = Field("playbooks/discovery.yml")
     ansible_timeout: int = 300
     ansible_user: str = Field("root", description="Default SSH user for Ansible discovery")
+    ansible_winrm_port: int = 5985
+    ansible_winrm_scheme: str = Field("http", description="WinRM scheme: http or https")
+    ansible_winrm_transport: str = Field("basic", description="WinRM transport, e.g. basic or ntlm")
+    ansible_winrm_message_encryption: str = Field(
+        "auto", description="WinRM message encryption strategy"
+    )
+    ansible_winrm_server_cert_validation: str = Field(
+        "ignore", description="WinRM cert validation policy"
+    )
     
     address_book_path: Path = Field(default=Path(__file__).parent / "config.json",
                                     description="Config file path")
