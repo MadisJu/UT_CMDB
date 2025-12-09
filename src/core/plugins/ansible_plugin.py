@@ -97,17 +97,21 @@ class AnsiblePlugin(BasePlugin):
 
     def _run_ansible_setup(self, target: str, user: str, is_windows: bool = False, password: str = None) -> Dict[str, Any]:
         try:
+            if is_windows and not password:
+                raise ValueError("Windows discovery requires a password for WinRM (basic auth).")
+
             inventory_file = self.inventory_dir / f"{target.replace('.', '_')}.ini"
             if is_windows:
                 inventory_content = (
                     f"[all]\n"
                     f"{target} ansible_host={target} "
                     f"ansible_user={user} ansible_password={password} "
-                    f"ansible_port=5985 "
+                    f"ansible_port={settings.ansible_winrm_port} "
                     f"ansible_connection=winrm "
-                    f"ansible_winrm_scheme=http "
-                    f"ansible_winrm_transport=basic "
-                    f"ansible_winrm_server_cert_validation=ignore\n"
+                    f"ansible_winrm_scheme={settings.ansible_winrm_scheme} "
+                    f"ansible_winrm_transport={settings.ansible_winrm_transport} "
+                    f"ansible_winrm_message_encryption={settings.ansible_winrm_message_encryption} "
+                    f"ansible_winrm_server_cert_validation={settings.ansible_winrm_server_cert_validation}\n"
                 )
                 module = "ansible.windows.setup"
                 extra_args = []

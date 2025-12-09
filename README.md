@@ -33,6 +33,11 @@ Our goal is to provide Eesti Pank with a single source of truth for IT assets, r
   - JIRA_ASSET_WORKSPACE_ID
   - JIRA_CLOUD_ID
   - ANSIBLE_INVENTORY_PATH
+  - ANSIBLE_WINRM_PORT / ansible_winrm_port (Windows discovery, default 5985)
+  - ANSIBLE_WINRM_SCHEME / ansible_winrm_scheme (http/https, default http)
+  - ANSIBLE_WINRM_TRANSPORT / ansible_winrm_transport (ntlm/basic, default basic)
+  - ANSIBLE_WINRM_MESSAGE_ENCRYPTION / ansible_winrm_message_encryption (default auto)
+  - ANSIBLE_WINRM_SERVER_CERT_VALIDATION / ansible_winrm_server_cert_validation (default ignore)
 
 Praegu on scheduler seadisatud jooksutama ja syncima iga 30-ne minuti tagant. Seda veel envis muuta ei saa, kuid saab src/scheduler/celery_app.py.
 
