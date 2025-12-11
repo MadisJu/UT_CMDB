@@ -1,9 +1,15 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field
-from pathlib import Path
-from typing import Optional
-import subprocess
 import json
+import logging
+import shlex
+import subprocess
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from pydantic import Field
+from pydantic_settings import BaseSettings
+
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -40,7 +46,10 @@ class Settings(BaseSettings):
     cmdb_interval_seconds: Optional[int] = Field(None, description="CMDB discovery interval in seconds")
 
     # --- Ansible ---
-    ansible_inventory_path: str = Field("inventories/default_inventory.ini")
+    ansible_inventory_path: Path = Field(
+        default=Path(__file__).resolve().parent / "inventory.ini",
+        description="Path to the Ansible inventory ini file",
+    )
     ansible_playbook_path: str = Field("playbooks/discovery.yml")
     ansible_timeout: int = 300
     ansible_user: str = Field("root", description="Default SSH user for Ansible discovery")
@@ -97,27 +106,117 @@ class Settings(BaseSettings):
 
         return data.get("all", [])
 
-    def get_ansible_inventory(self) -> str:
-        """Return Ansible inventory path"""
+    def get_ansible_inventory(self) -> Dict[str, Any]:
+        """Load and normalize Ansible inventory data."""
+        path = self._resolve_inventory_path()
+        raw_inventory = self._load_inventory_with_fallback(path)
+        return self._normalize_inventory(raw_inventory)
 
-        path = self.ansible_inventory_path
+    def _resolve_inventory_path(self) -> Path:
+        path = Path(self.ansible_inventory_path).expanduser()
 
-        if not Path(path).exists():
+        if not path.is_absolute():
+            candidate = (Path(__file__).resolve().parent / path).resolve()
+            if candidate.exists():
+                path = candidate
+            else:
+                path = path.resolve()
+
+        if not path.exists():
             raise FileNotFoundError(f"Ansible inventory is not found at {path}")
 
+        return path
+
+    def _load_inventory_with_fallback(self, path: Path) -> Dict[str, Any]:
+        """
+        Try to load the inventory using the Ansible CLI.
+        If that fails (e.g. ansible not installed), fall back to parsing the ini file directly.
+        """
         try:
-            process = subprocess.run(
-                ["ansible-inventory", "--list", "-i", str(path)],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=15,
+            return self._load_inventory_with_cli(path)
+        except Exception as cli_error:
+            logger.warning(
+                "Failed to load inventory with ansible-inventory, falling back to ini parser: %s",
+                cli_error,
             )
-            raw = json.loads(process.stdout)
+            return self._parse_inventory_file(path)
 
-        except Exception as e:
-            raise RuntimeError(f"Failed to load Ansible inventory: {e}") from e
+    def _load_inventory_with_cli(self, path: Path) -> Dict[str, Any]:
+        process = subprocess.run(
+            ["ansible-inventory", "--list", "-i", str(path)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        return json.loads(process.stdout)
 
+    def _parse_inventory_file(self, path: Path) -> Dict[str, Any]:
+        """Minimal parser for ini-style Ansible inventories."""
+        groups: Dict[str, Dict[str, Any]] = {}
+        hostvars: Dict[str, Dict[str, Any]] = {}
+
+        current_group = "ungrouped"
+        section_modifier: Optional[str] = None
+        groups[current_group] = {"hosts": [], "children": [], "vars": {}}
+
+        for raw_line in path.read_text().splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith(("#", ";")):
+                continue
+
+            if line.startswith("[") and line.endswith("]"):
+                section = line[1:-1].strip()
+                if ":" in section:
+                    group_name, modifier = section.split(":", 1)
+                    current_group = group_name.strip()
+                    section_modifier = modifier.strip()
+                else:
+                    current_group = section
+                    section_modifier = None
+
+                groups.setdefault(current_group, {"hosts": [], "children": [], "vars": {}})
+                continue
+
+            if section_modifier == "vars":
+                key, _, value = line.partition("=")
+                if key:
+                    groups[current_group]["vars"][key.strip()] = value.strip()
+                continue
+
+            if section_modifier == "children":
+                child = line.strip()
+                if child:
+                    groups[current_group].setdefault("children", []).append(child)
+                continue
+
+            parts = shlex.split(line)
+            if not parts:
+                continue
+
+            host = parts[0]
+            groups[current_group].setdefault("hosts", []).append(host)
+
+            vars_for_host = {}
+            for token in parts[1:]:
+                if "=" in token:
+                    key, value = token.split("=", 1)
+                    vars_for_host[key.strip()] = value.strip()
+
+            hostvars[host] = {**hostvars.get(host, {}), **vars_for_host}
+
+        if "all" not in groups:
+            groups["all"] = {"hosts": [], "children": [], "vars": {}}
+
+        groups["all"].setdefault("children", [])
+        for group_name in groups.keys():
+            if group_name != "all" and group_name not in groups["all"]["children"]:
+                groups["all"]["children"].append(group_name)
+
+        return {"_meta": {"hostvars": hostvars}, **groups}
+
+    def _normalize_inventory(self, raw: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize inventory to unified structure with hostvars on every group."""
         hostvars = raw.get("_meta", {}).get("hostvars", {})
 
         groups = {
@@ -127,7 +226,6 @@ class Settings(BaseSettings):
         }
 
         def resolve_hosts(group_name: str, visited=None) -> list:
-            """Helper for grouping"""
             if visited is None:
                 visited = set()
 
@@ -155,7 +253,6 @@ class Settings(BaseSettings):
         resolved = {}
 
         for group_name, group_data in groups.items():
-
             resolved_hosts = resolve_hosts(group_name)
 
             resolved[group_name] = {

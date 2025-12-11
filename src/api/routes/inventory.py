@@ -17,7 +17,16 @@ def get_machine_inventory():
 def get_all_machines(inventory: MachineInventory = Depends(get_machine_inventory)):
     """Tagastab kõik masinad."""
     try:
-        return inventory.get_all_machines()
+        hosts = inventory.get_all_machines()
+        machines = []
+        for host in hosts:
+            host_vars = inventory.get_host_vars(host)
+            machines.append({
+                "hostname": host,
+                "ansible_host": host_vars.get("ansible_host", host),
+                "ansible_user": host_vars.get("ansible_user")
+            })
+        return machines
     except Exception as e:
         logger.error(f"Failed to get machines: {e}")
         raise HTTPException(
