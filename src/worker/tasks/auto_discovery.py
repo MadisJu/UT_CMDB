@@ -1,6 +1,8 @@
 import logging
 import sys
 from pathlib import Path
+from datetime import datetime
+from src.core.logging_adapter import record_job_run
 
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -22,6 +24,7 @@ def auto_discovery_and_sync_task():
 
 @celery_app.task(name="src.worker.tasks.auto_discovery.auto_discovery_task", bind=True, max_retries=3)
 def auto_discovery_task(self):
+    start_time = datetime.utcnow()
     try:
         logger.info("Starting automatic discovery task")
         
@@ -31,6 +34,14 @@ def auto_discovery_task(self):
         
         if not machines:
             logger.warning("No enabled machines found in inventory")
+            record_job_run(
+                job_name="auto_discovery_task",
+                start_time=start_time,
+                end_time=datetime.utcnow(),
+                status="success",
+                processed_count=0,
+                diagnostics={"message": "No machines to discover"}
+            )
             return {
                 "status": "success",
                 "message": "No machines to discover",
@@ -107,18 +118,19 @@ def auto_discovery_task(self):
                     "host": host,
                     "error": str(e)
                 })
-        
-        self.update_state(
-            state='PROGRESS',
-            meta={
-                'current': len(machines), 
-                'total': len(machines), 
-                'status': f'Completed discovery of {len(machines)} machines'
+
+        record_job_run(
+            job_name="auto_discovery_task",
+            start_time=start_time,
+            end_time=datetime.utcnow(),
+            status="success",
+            processed_count=len(discovered_assets),
+            diagnostics={
+                "failed_count": len(failed_discoveries),
+                "failed_hosts": [f["host"] for f in failed_discoveries]
             }
         )
-        
-        logger.info(f"Auto discovery completed: {len(discovered_assets)} assets discovered, {len(failed_discoveries)} failures")
-        
+
         return {
             "status": "success",
             "message": f"Auto discovery completed for {len(machines)} machines",
@@ -129,15 +141,17 @@ def auto_discovery_task(self):
             "discovery_method": "auto_discovery",
             "inventory_summary": inventory.get_inventory_summary()
         }
-    
+
     except Exception as exc:
-        logger.error(f"Auto discovery task failed: {exc}")
-        
-        self.update_state(
-            state='FAILURE',
-            meta={'current': 0, 'total': 1, 'status': f'Auto discovery failed: {str(exc)}'}
+        logger.error(f"Auto discovery task failed: {exc}", exc_info=True)
+        record_job_run(
+            job_name="auto_discovery_task",
+            start_time=start_time,
+            end_time=datetime.utcnow(),
+            status="failure",
+            processed_count=0,
+            diagnostics={"error": str(exc)}
         )
-        
         raise self.retry(exc=exc, countdown=60)
 
 

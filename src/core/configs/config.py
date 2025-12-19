@@ -115,12 +115,25 @@ class Settings(BaseSettings):
     def _resolve_inventory_path(self) -> Path:
         path = Path(self.ansible_inventory_path).expanduser()
 
-        if not path.is_absolute():
+        if path.is_absolute():
+            if path.exists():
+                return path
+        else:
             candidate = (Path(__file__).resolve().parent / path).resolve()
             if candidate.exists():
-                path = candidate
-            else:
-                path = path.resolve()
+                return candidate
+
+            candidate = path.resolve()
+            if candidate.exists():
+                return candidate
+
+            try:
+                project_root = Path(__file__).resolve().parents[3]
+                candidate = (project_root / path).resolve()
+                if candidate.exists():
+                    return candidate
+            except IndexError:
+                pass
 
         if not path.exists():
             raise FileNotFoundError(f"Ansible inventory is not found at {path}")

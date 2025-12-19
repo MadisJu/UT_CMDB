@@ -33,3 +33,5 @@ celerybeat-schedule.dir
 cmdb.db
 /wheelhouse/
 src/core/configs/inventory.ini
+logs/
+*.log

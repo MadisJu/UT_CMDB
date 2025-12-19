@@ -1,15 +1,15 @@
 import requests
 from requests.auth import HTTPBasicAuth
 from typing import List, Dict, Any, Optional
-import logging
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 from src.api.schemas.jira import JiraAsset, JiraAssetAttribute, JiraAQLResponse
 from src.core.configs.config import Settings
 from src.core.models.fact_parser import parse_facts_to_asset
 from src.core.models.asset_model import HostAsset 
+import logging
 
 logger = logging.getLogger(__name__)
-
 
 class JiraClient:  
 
@@ -105,7 +105,7 @@ class JiraClient:
             logger.error(f"Jira API connection failed: {e}")
             raise
     
-    def get_object_type_schema(self, object_type_id: str = "25") -> Dict[str, Any]:
+    def get_object_type_schema(self, object_type_id: str = "13") -> Dict[str, Any]:
 
         endpoint = f"{self.base_url}/objectschema/list"
         
@@ -243,7 +243,7 @@ class JiraClient:
             logger.error(f"Unexpected error retrieving object type schema: {e}")
             raise
     
-    def list_object_attributes(self, object_type_id: str = "25"):
+    def list_object_attributes(self, object_type_id: str = "13"):
         print("START METHOD", flush=True)
         try:
             schema = self.get_object_type_schema(object_type_id)
@@ -439,6 +439,16 @@ class JiraClient:
                     results["created"] += 1
                     asset_key = created_asset.objectKey if created_asset else 'N/A'
                     logger.info(f"Successfully created asset {asset_key} for hostname {hostname}")
+                    
+                    cmdb_logger.log_audit_addition(
+                        timestamp=datetime.now(timezone.utc),
+                        admin_id="System",  # Automated process
+                        target_details={
+                            "hostname": hostname,
+                            "asset_key": asset_key,
+                            "asset_type": asset_model.type if hasattr(asset_model, 'type') else 'host'
+                        }
+                    )
 
             except Exception as e:
                 hostname_for_error = asset_data.get("hostname", "unknown")
@@ -449,7 +459,7 @@ class JiraClient:
         logger.info(f"Sync completed: {results['created']} created, {results['updated']} updated, {results['errors']} errors")
         return results
     
-    def list_object_attributes2(self, object_type_id: str = "25") -> list[dict]:
+    def list_object_attributes2(self, object_type_id: str = "13") -> list[dict]:
         """
         Return all attribute definitions for a given object type.
         """
@@ -458,7 +468,7 @@ class JiraClient:
         response.raise_for_status()
         return response.json()
 
-    def create_attribute(self, attribute_payload: dict, object_type_id: str = "25") -> dict:
+    def create_attribute(self, attribute_payload: dict, object_type_id: str = "13") -> dict:
         """
         Create a new attribute for the obj whatever
         Example payload: {"name": "cpu_cores", "type": "STRING"}
