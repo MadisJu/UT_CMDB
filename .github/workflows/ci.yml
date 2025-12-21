@@ -52,7 +52,21 @@ jobs:
       - name: Create configs directory
         run: |
           mkdir -p src/core/configs
-  
+
+      - name: Debug Jira secrets lengths
+        run: |
+          echo "JIRA_URL len=${#JIRA_URL}"
+          echo "JIRA_USER_EMAIL len=${#JIRA_USER_EMAIL}"
+          echo "JIRA_API_TOKEN len=${#JIRA_API_TOKEN}"
+          echo "JIRA_ASSET_WORKSPACE_ID len=${#JIRA_ASSET_WORKSPACE_ID}"
+          echo "JIRA_CLOUD_ID len=${#JIRA_CLOUD_ID}"
+        env:
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_ASSET_WORKSPACE_ID: ${{ secrets.JIRA_ASSET_WORKSPACE_ID }}
+          JIRA_CLOUD_ID: ${{ secrets.JIRA_CLOUD_ID }}
+          
       - name: Create .env file
         run: |
           cat > src/core/configs/.env << 'EOF'
