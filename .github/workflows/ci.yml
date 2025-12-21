@@ -101,6 +101,30 @@ jobs:
           CMDB_INTERVAL_SECONDS=${{ secrets.CMDB_INTERVAL_SECONDS }}
           EOF
   
-      - name: Run application
+      - name: Install and start UT CMDB service
         run: |
-          python src/main.py
+          cat <<'EOF' | sudo tee /etc/systemd/system/utcmdb.service
+          [Unit]
+          Description=UT CMDB (main.py)
+          After=network.target
+      
+          [Service]
+          Type=simple
+          User=ubuntu
+          WorkingDirectory=/home/ubuntu/actions-runner/_work/UT_CMDB/UT_CMDB
+          Environment=PYTHONUNBUFFERED=1
+          Environment=PYTHONPATH=/home/ubuntu/actions-runner/_work/UT_CMDB/UT_CMDB
+          EnvironmentFile=/home/ubuntu/actions-runner/_work/UT_CMDB/UT_CMDB/src/core/configs/.env
+          ExecStart=/home/ubuntu/actions-runner/_work/UT_CMDB/UT_CMDB/.venv/bin/python src/main.py
+          Restart=on-failure
+          RestartSec=5
+      
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+      
+          sudo systemctl daemon-reload
+          sudo systemctl enable utcmdb.service
+          sudo systemctl restart utcmdb.service
+          sudo systemctl status utcmdb.service --no-pager --full
+
