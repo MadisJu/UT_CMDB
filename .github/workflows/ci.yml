@@ -33,22 +33,73 @@ jobs:
     needs: test
     if: github.event_name == 'push'
     runs-on: [self-hosted, linux]
-
+  
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+  
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
+  
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Run application
-        working-directory: src
+  
+      - name: Create configs directory
         run: |
-          python main.py
+          mkdir -p src/core/configs
+  
+      - name: Create .env file
+        run: |
+          cat > src/core/configs/.env << 'EOF'
+          ENV=${{ secrets.ENV }}
+  
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+  
+          CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}
+          CELERY_RESULT_BACKEND=${{ secrets.CELERY_RESULT_BACKEND }}
+  
+          JIRA_URL=${{ secrets.JIRA_URL }}
+          JIRA_API_TOKEN=${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL=${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_ASSET_WORKSPACE_ID=${{ secrets.JIRA_ASSET_WORKSPACE_ID }}
+          JIRA_CLOUD_ID=${{ secrets.JIRA_CLOUD_ID }}
+  
+          ANSIBLE_INVENTORY_PATH=src/core/configs/inventory.ini
+          ANSIBLE_PLAYBOOK_PATH=playbooks/discovery.yml
+          ANSIBLE_TIMEOUT=300
+  
+          DISCOVERY_INTERVAL_HOURS=${{ secrets.DISCOVERY_INTERVAL_HOURS }}
+          SYNC_INTERVAL_MINUTES=${{ secrets.SYNC_INTERVAL_MINUTES }}
+  
+          LOG_LEVEL=${{ secrets.LOG_LEVEL }}
+  
+          ENABLE_PLUGINS=${{ secrets.ENABLE_PLUGINS }}
+          ENABLE_JIRA_SYNC=${{ secrets.ENABLE_JIRA_SYNC }}
+          ENABLE_ANSIBLE_DISCOVERY=${{ secrets.ENABLE_ANSIBLE_DISCOVERY }}
+  
+          CMDB_HOST=${{ secrets.CMDB_HOST }}
+          CMDB_USER=${{ secrets.CMDB_USER }}
+          CMDB_INTERVAL_SECONDS=${{ secrets.CMDB_INTERVAL_SECONDS }}
+          EOF
+  
+      - name: Create Ansible inventory.ini
+        run: |
+          cat > src/core/configs/inventory.ini << 'EOF'
+          [targets]
+          ubuntu_scanner ansible_host=${{ secrets.ANSIBLE_UBUNTU_HOST }} ansible_user=${{ secrets.ANSIBLE_UBUNTU_USER }} ansible_ssh_private_key_file=${{ secrets.ANSIBLE_SSH_KEY_PATH }}
+          rocky_scanner ansible_host=${{ secrets.ANSIBLE_ROCKY_HOST }} ansible_user=${{ secrets.ANSIBLE_ROCKY_USER }} ansible_ssh_private_key_file=${{ secrets.ANSIBLE_SSH_KEY_PATH }}
+          EOF
+  
+      - name: Verify configs (safe)
+        run: |
+          test -f src/core/configs/.env
+          test -f src/core/configs/inventory.ini
+          test -f ${{ secrets.ANSIBLE_SSH_KEY_PATH }}
+  
+      - name: Run application
+        run: |
+          python src/main.py
