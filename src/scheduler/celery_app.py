@@ -2,12 +2,16 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
-from src.core.configs.celery_config import celery_app
-from src.core.configs.config import settings
-import logging
+from src.core.logging_adapter import configure_logging
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+configure_logging()
+
+from src.core.configs.celery_config import celery_app
+from src.core.configs.config import settings
+import logging
 
 logger = logging.getLogger(__name__)
 

@@ -20,7 +20,6 @@ class MachineInventory:
         Parsed_inv is already preparsed inv, otherwise just idk takes the settings one
         """
         self.inventory = parsed_inventory or settings.get_ansible_inventory()
-        logger.info(self.inventory)
 
     def get_all_machines(self) -> List[str]:
         """Return all hostnames in the inventory."""

@@ -5,6 +5,7 @@ import logging
 
 from src.core.models.asset_model import HostAsset, LinuxAsset, WindowsAsset, SparcAsset
 from src.core.integrations.jira_client import JiraClient
+from src.core.logging_adapter import audit_log
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class JiraFieldMapper:
         self.jira = JiraClient()
         self.field_map: Dict[str, str] = {}
         self.load_mapping()
-        self.ensure_all_attributes()
+        # self.ensure_all_attributes() # Disabled automatic creation
 
     def load_mapping(self):
         if self.mapping_file.exists():

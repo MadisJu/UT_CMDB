@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from .routes import jira, jobs, sync, discovery, inventory
 from dotenv import load_dotenv
 from src.core.database import create_db_and_tables
+from src.api.middleware.logging_middleware import APILoggingMiddleware
 
 # Laeb .env faili muutujad
 load_dotenv()
@@ -10,6 +11,8 @@ load_dotenv()
 app = FastAPI(
     title="CMDB API"
 )
+
+app.add_middleware(APILoggingMiddleware)
 
 logger = logging.getLogger(__name__)
 

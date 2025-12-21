@@ -3,7 +3,9 @@ import logging
 import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
+from datetime import datetime
 from pydantic import ValidationError
+from src.core.logging_adapter import record_job_run
 
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -64,6 +66,7 @@ def discovery_task(self, host: str, user: str):
     """
     Task to discover a single host.
     """
+    start_time = datetime.utcnow()
     from src.core.plugins.plugin_loader import get_plugin
     from src.core.models.asset_model import HostAsset
     try:
@@ -73,15 +76,43 @@ def discovery_task(self, host: str, user: str):
         if result:
             asset = _coerce_asset_model(result)
             logger.info(f"Discovered asset prepared: {asset.hostname}")
-        return asset.dict() if asset else result
+            
+            record_job_run(
+                job_name="discovery_task",
+                start_time=start_time,
+                end_time=datetime.utcnow(),
+                status="success",
+                processed_count=1,
+                diagnostics={"hostname": asset.hostname}
+            )
+            return asset.dict() if asset else result
+        else:
+            record_job_run(
+                job_name="discovery_task",
+                start_time=start_time,
+                end_time=datetime.utcnow(),
+                status="success",
+                processed_count=0,
+                diagnostics={"message": "No result returned"}
+            )
+            return None
     except Exception as e:
         logger.error(f"Discovery task failed for {host}: {e}")
+        record_job_run(
+            job_name="discovery_task",
+            start_time=start_time,
+            end_time=datetime.utcnow(),
+            status="failure",
+            processed_count=0,
+            diagnostics={"error": str(e), "host": host}
+        )
         raise self.retry(exc=e, countdown=60)
 
 
 @celery_app.task(name="worker.tasks.discovery.batch_discovery_task", bind=True, max_retries=3)
 def batch_discovery_task(self, hosts, user):
     # discover multiple hosts using Ansible plugin
+    start_time = datetime.utcnow()
     from src.core.plugins.ansible_plugin import AnsiblePlugin
     from src.core.models.asset_model import HostAsset
     from src.core.services.jira_service import JiraService
@@ -134,33 +165,40 @@ def batch_discovery_task(self, hosts, user):
                 jira_service = JiraService()
                 jira_summary = jira_service.sync_assets_from_models(asset_models)
                 logger.info(
-                    "Jira sync summary - created: %s, updated: %s, errors: %s",
-                    jira_summary.get("created"),
-                    jira_summary.get("updated"),
-                    jira_summary.get("errors"),
+                    f"Jira sync completed: {jira_summary.get('created', 0)} created, "
+                    f"{jira_summary.get('updated', 0)} updated"
                 )
-        except ValueError as config_error:
-            logger.info("Skipping Jira sync: %s", config_error)
-            jira_summary = {"skipped": True, "detail": str(config_error)}
-        except Exception as jira_error:
-            logger.error("Failed to sync assets with Jira: %s", jira_error, exc_info=True)
-            jira_summary = {"error": str(jira_error)}
+        except Exception as e:
+            logger.error(f"Failed to sync batch results to Jira: {e}")
+            jira_summary = {"error": str(e)}
+
+        record_job_run(
+            job_name="batch_discovery_task",
+            start_time=start_time,
+            end_time=datetime.utcnow(),
+            status="success",
+            processed_count=len(assets),
+            diagnostics={
+                "hosts_count": len(hosts),
+                "jira_sync": jira_summary
+            }
+        )
         
         return {
             "status": "success",
-            "hosts": hosts,
+            "discovered_count": len(assets),
             "assets": assets,
-            "discovery_method": "ansible_batch",
-            "total_discovered": len(assets),
-            "jira_sync": jira_summary,
+            "jira_sync": jira_summary
         }
-    
+
     except Exception as exc:
-        logger.error(f"Batch discovery task failed: {exc}")
-        
-        self.update_state(
-            state='FAILURE',
-            meta={'current': 0, 'total': len(hosts), 'status': f'Batch discovery failed: {str(exc)}'}
+        logger.error(f"Batch discovery task failed: {exc}", exc_info=True)
+        record_job_run(
+            job_name="batch_discovery_task",
+            start_time=start_time,
+            end_time=datetime.utcnow(),
+            status="failure",
+            processed_count=0,
+            diagnostics={"error": str(exc)}
         )
-        
         raise self.retry(exc=exc, countdown=60)

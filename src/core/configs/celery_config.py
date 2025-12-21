@@ -15,6 +15,12 @@ backend_url = settings.celery_result_backend
 
 celery_app = Celery("cmdb_worker", broker=broker_url, backend=backend_url)
 
+try:
+    from src.core.logging_adapter import configure_logging
+    configure_logging()
+except Exception:
+    pass
+
 celery_app.conf.update(
     task_default_queue="ansible",
     worker_concurrency=2,
