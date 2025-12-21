@@ -39,15 +39,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install system Python 3.11 (for runtime/venv)
+      - name: Install system Python 3.12 (for runtime/venv)
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3.11 python3.11-venv
+          sudo apt-get install -y python3.12 python3.12-venv
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
   
       - name: Install dependencies
         run: |
