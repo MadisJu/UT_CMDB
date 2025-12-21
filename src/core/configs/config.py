@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -13,6 +13,23 @@ logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
+
+    @model_validator(mode="before")
+    def _drop_empty_strings(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        CI pipelines sometimes inject empty-string secrets; strip them so defaults apply.
+        """
+        if not isinstance(values, dict):
+            return values
+
+        cleaned = {}
+        for key, val in values.items():
+            if isinstance(val, str) and val.strip() == "":
+                # Skip empty strings to allow default/type conversion to work
+                continue
+            cleaned[key] = val
+
+        return cleaned
 
     # --- Core System ---
     env: str = Field("development", description="Environment: dev/staging/prod")

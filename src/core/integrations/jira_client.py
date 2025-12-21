@@ -420,14 +420,8 @@ class JiraClient:
                     if "objectTypeId" in update_payload:
                         del update_payload["objectTypeId"]
 
-                    safe_attributes = []
-                    for attr in update_payload.get("attributes", []):
-                        attr_id = attr.get("objectTypeAttributeId")
-                        if attr_id in ["100", "121", "189", "190", "191"]: 
-                            safe_attributes.append(attr)
-                    
-                    update_payload["attributes"] = safe_attributes
-                    logger.info(f"Updating with {len(safe_attributes)} safe attributes")
+                    # Push all mapped attributes so Jira receives the full update set.
+                    logger.info(f"Updating with {len(update_payload.get('attributes', []))} attributes")
                     
                     self.update_asset(existing_asset_id, update_payload)
                     results["updated"] += 1

@@ -22,16 +22,33 @@ celery_app.conf.update(
 
 
 def _get_schedule_config():
+    interval_seconds = None
+
     try:
-        
-        interval_seconds = int(os.getenv("CMDB_INTERVAL_SECONDS", 
-                                        settings.cmdb_interval_seconds or 3600))
-        return interval_seconds
-        
+        discovery_settings = settings.get_discovery_settings()
+        if isinstance(discovery_settings, dict):
+            raw = discovery_settings.get("interval_seconds")
+            if raw:
+                interval_seconds = int(raw)
     except Exception as e:
-        logger.error(f"Failed to get schedule configuration: {e}")
-        interval_seconds = int(os.getenv("CMDB_INTERVAL_SECONDS", "3600"))
-        return interval_seconds
+        logger.warning(f"Could not read interval from discovery_settings: {e}")
+
+    if interval_seconds is None:
+        env_value = os.getenv("CMDB_INTERVAL_SECONDS")
+        if env_value:
+            try:
+                interval_seconds = int(env_value)
+            except ValueError:
+                logger.warning(f"Invalid CMDB_INTERVAL_SECONDS env value: {env_value!r}")
+
+    if interval_seconds is None:
+        interval_seconds = int(settings.cmdb_interval_seconds or 3600)
+
+    if interval_seconds <= 0:
+        logger.warning(f"Non-positive interval_seconds ({interval_seconds}) -> using default 3600")
+        interval_seconds = 3600
+
+    return interval_seconds
 
 
 interval_seconds = _get_schedule_config()
@@ -40,13 +57,13 @@ beat_schedule = {}
 
 beat_schedule["periodic-auto-discovery-sync"] = {
     "task": "src.worker.tasks.auto_discovery.auto_discovery_and_sync",
-    "schedule": timedelta(seconds=1200),
+    "schedule": timedelta(seconds=interval_seconds),
 }
 
 
 celery_app.conf.beat_schedule = beat_schedule
 
 logger.info(f"Configured {len(beat_schedule)} scheduled tasks")
-
+logger.info(f"Auto discovery interval set to {interval_seconds} seconds")
 
 
