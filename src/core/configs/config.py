@@ -317,6 +317,46 @@ class Settings(BaseSettings):
             return self.cmdb_user
         return "root"
     
-
+    
 
 settings = Settings()
+
+
+def _mask_secret(value: Optional[str], visible: int = 4) -> str:
+    if not value:
+        return "<missing>"
+    value = str(value)
+    if len(value) <= visible * 2:
+        return value[0:visible] + "***"
+    return value[0:visible] + "***" + value[-visible:]
+
+
+def log_effective_settings(s: Settings) -> None:
+    """
+    Log key settings (with secrets masked) to help diagnose CI env injection.
+    """
+    try:
+        logger.info(
+            "Settings loaded | env=%s cmdb_host=%s cmdb_port=%s cmdb_interval_seconds=%s "
+            "enable_jira_sync=%s enable_ansible_discovery=%s",
+            s.env,
+            s.cmdb_host,
+            s.cmdb_port,
+            s.cmdb_interval_seconds,
+            s.enable_jira_sync,
+            s.enable_ansible_discovery,
+        )
+        logger.info(
+            "Jira settings | url=%s email=%s cloud_id=%s workspace_id=%s token=%s",
+            s.jira_url or "<missing>",
+            s.jira_user_email or "<missing>",
+            s.jira_cloud_id or "<missing>",
+            s.jira_asset_workspace_id or "<missing>",
+            _mask_secret(s.jira_api_token),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to log effective settings: {e}")
+
+
+# Emit settings snapshot on import to aid CI debugging
+log_effective_settings(settings)
