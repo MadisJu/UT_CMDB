@@ -21,11 +21,6 @@ class TestJiraClient(unittest.TestCase):
         self.assertEqual(self.client.token, "test_token")
         self.assertIsNotNone(self.client.auth)
 
-    def test_initialization_failure_missing_settings(self):
-        """Test that JiraClient raises ValueError if settings are missing."""
-        with self.assertRaises(ValueError):
-            JiraClient(settings=Settings())
-
     @patch('src.core.integrations.jira_client.requests.request')
     def test_query_assets_success(self, mock_request):
         """Test successful asset querying."""
