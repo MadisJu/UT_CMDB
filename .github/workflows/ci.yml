@@ -86,20 +86,6 @@ jobs:
           CMDB_INTERVAL_SECONDS=${{ secrets.CMDB_INTERVAL_SECONDS }}
           EOF
   
-      - name: Create Ansible inventory.ini
-        run: |
-          cat > src/core/configs/inventory.ini << 'EOF'
-          [targets]
-          ubuntu_scanner ansible_host=${{ secrets.ANSIBLE_UBUNTU_HOST }} ansible_user=${{ secrets.ANSIBLE_UBUNTU_USER }} ansible_ssh_private_key_file=${{ secrets.ANSIBLE_SSH_KEY_PATH }}
-          rocky_scanner ansible_host=${{ secrets.ANSIBLE_ROCKY_HOST }} ansible_user=${{ secrets.ANSIBLE_ROCKY_USER }} ansible_ssh_private_key_file=${{ secrets.ANSIBLE_SSH_KEY_PATH }}
-          EOF
-  
-      - name: Verify configs (safe)
-        run: |
-          test -f src/core/configs/.env
-          test -f src/core/configs/inventory.ini
-          test -f ${{ secrets.ANSIBLE_SSH_KEY_PATH }}
-  
       - name: Run application
         run: |
           python src/main.py
