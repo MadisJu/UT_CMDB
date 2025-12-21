@@ -100,25 +100,33 @@ jobs:
           CMDB_USER=${{ secrets.CMDB_USER }}
           CMDB_INTERVAL_SECONDS=${{ secrets.CMDB_INTERVAL_SECONDS }}
           EOF
+
+      - name: Build wheelhouse
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Install from wheelhouse
+        run: |
+          chmod +x install.sh
+          ./install.sh ./wheelhouse
   
       - name: Install and start UT CMDB service
         run: |
           cat <<'EOF' | sudo tee /etc/systemd/system/utcmdb.service
           [Unit]
-          Description=UT CMDB (main.py)
+          Description=UT CMDB (start.sh)
           After=network.target
-      
+          
           [Service]
           Type=simple
           User=ubuntu
           WorkingDirectory=/home/ubuntu/actions-runner/_work/UT_CMDB/UT_CMDB
-          Environment=PYTHONUNBUFFERED=1
-          Environment=PYTHONPATH=/home/ubuntu/actions-runner/_work/UT_CMDB/UT_CMDB
           EnvironmentFile=/home/ubuntu/actions-runner/_work/UT_CMDB/UT_CMDB/src/core/configs/.env
-          ExecStart=/home/ubuntu/actions-runner/_work/UT_CMDB/UT_CMDB/.venv/bin/python src/main.py
+          ExecStart=/bin/bash /home/ubuntu/actions-runner/_work/UT_CMDB/UT_CMDB/start.sh
           Restart=on-failure
           RestartSec=5
-      
+          
           [Install]
           WantedBy=multi-user.target
           EOF
