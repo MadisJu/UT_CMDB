@@ -94,9 +94,12 @@ def parse_ansible_facts(facts: Dict[str, Any]) -> HostAsset:
         if not isinstance(net_info, dict):
             net_info = {}
 
+        hostname = facts.get("ansible_hostname", "unknown")
+
         return HostAsset(
             type="host",
-            hostname=facts.get("ansible_hostname", "unknown"),
+            hostname=hostname,
+            name=hostname,
             ip_address=net_info.get("address", "0.0.0.0"),
             os=facts.get("ansible_distribution", facts.get("ansible_os_family", "Unknown")),
             os_version=facts.get("ansible_distribution_version"),
@@ -113,9 +116,11 @@ def parse_ansible_facts(facts: Dict[str, Any]) -> HostAsset:
         )
     except Exception as e:
         logger.error(f"Error parsing Ansible facts: {e}")
+        hostname = facts.get("ansible_hostname", "unknown_error")
         return HostAsset(
             type="host",
-            hostname=facts.get("ansible_hostname", "unknown_error"),
+            hostname=hostname,
+            name=hostname,
             ip_address=facts.get("ansible_default_ipv4", {}).get("address", "0.0.0.0"),
             os="Unknown",
             cpu_cores=0,

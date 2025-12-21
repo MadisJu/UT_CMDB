@@ -2,6 +2,7 @@ import json
 import logging
 import shlex
 import subprocess
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -30,6 +31,22 @@ class Settings(BaseSettings):
             cleaned[key] = val
 
         return cleaned
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        """
+        Skip loading the default .env when running under pytest or when explicitly requested.
+        This avoids unit tests picking up real Jira credentials from the repo .env.
+        """
+        if os.getenv("SKIP_DOTENV") or os.getenv("PYTEST_CURRENT_TEST"):
+            return (init_settings, env_settings, file_secret_settings)
+        return (init_settings, env_settings, dotenv_settings, file_secret_settings)
 
     # --- Core System ---
     env: str = Field("development", description="Environment: dev/staging/prod")
