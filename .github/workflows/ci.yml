@@ -33,6 +33,7 @@ jobs:
     needs: test
     if: github.event_name == 'push'
     runs-on: [self-hosted, linux]
+    environment: buildenv
   
     steps:
       - name: Checkout repository
