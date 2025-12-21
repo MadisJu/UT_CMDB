@@ -28,3 +28,64 @@ jobs:
       - name: Run tests
         run: |
           pytest tests/ --maxfail=5 --disable-warnings
+
+  build-and-run:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: [self-hosted, linux]
+  
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+  
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+  
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+  
+      - name: Create configs directory
+        run: |
+          mkdir -p src/core/configs
+  
+      - name: Create .env file
+        run: |
+          cat > src/core/configs/.env << 'EOF'
+          ENV=${{ secrets.ENV }}
+  
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+  
+          CELERY_BROKER_URL=${{ secrets.CELERY_BROKER_URL }}
+          CELERY_RESULT_BACKEND=${{ secrets.CELERY_RESULT_BACKEND }}
+  
+          JIRA_URL=${{ secrets.JIRA_URL }}
+          JIRA_API_TOKEN=${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL=${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_ASSET_WORKSPACE_ID=${{ secrets.JIRA_ASSET_WORKSPACE_ID }}
+          JIRA_CLOUD_ID=${{ secrets.JIRA_CLOUD_ID }}
+  
+          ANSIBLE_INVENTORY_PATH=src/core/configs/inventory.ini
+          ANSIBLE_PLAYBOOK_PATH=playbooks/discovery.yml
+          ANSIBLE_TIMEOUT=300
+  
+          DISCOVERY_INTERVAL_HOURS=${{ secrets.DISCOVERY_INTERVAL_HOURS }}
+          SYNC_INTERVAL_MINUTES=${{ secrets.SYNC_INTERVAL_MINUTES }}
+  
+          LOG_LEVEL=${{ secrets.LOG_LEVEL }}
+  
+          ENABLE_PLUGINS=${{ secrets.ENABLE_PLUGINS }}
+          ENABLE_JIRA_SYNC=${{ secrets.ENABLE_JIRA_SYNC }}
+          ENABLE_ANSIBLE_DISCOVERY=${{ secrets.ENABLE_ANSIBLE_DISCOVERY }}
+  
+          CMDB_HOST=${{ secrets.CMDB_HOST }}
+          CMDB_USER=${{ secrets.CMDB_USER }}
+          CMDB_INTERVAL_SECONDS=${{ secrets.CMDB_INTERVAL_SECONDS }}
+          EOF
+  
+      - name: Run application
+        run: |
+          python src/main.py
