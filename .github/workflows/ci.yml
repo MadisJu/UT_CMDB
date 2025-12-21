@@ -28,3 +28,6 @@ jobs:
       - name: Run tests
         run: |
           pytest tests/ --maxfail=5 --disable-warnings
+
+  deploy:
+    runs-on: self-hosted
